@@ -424,93 +424,130 @@ module Browser =
       with e ->
         printf "Something went wrong: %s" e.Message
       instr <- ""
-      
-  prog <- 
-   [
-    "1000 X=0"
-    "2000 POKE X CHR$(32)"
-    "2010 X=X+1"
-    "2020 POKE X CHR$(209)"
-    "2030 GOTO 2000"
+  
+  type Input = 
+    | Code of string
+    | Rem of string
+  let inputs = 
+   [|
+    Rem "Start with simple hello world..."
+    Code "PRINT \"HELLO WORLD\""
 
-    "1010 DX=1"
-    "1010 Y=0"
-    "1020 DX=1"
-    "1030 DY=1"
-    "2010 X=X+DX"
-    "2020 Y=Y+DY"
-    "2030 IF X=40 THEN DX=0-1"
-    "2040 IF X=40 THEN X=38"
-    "2050 IF X<0 THEN DX=1"
-    "2060 IF X<0 THEN X=2"
-    "2200 POKE ((Y*40)+X) CHR$(209)"
-    "2210 GOTO 2000"
+    Rem "Create the famous maze"
+    Code "10 PRINT CHR$(205.5 + RND(1));"
+    Code "20 GOTO 10"
+    Code "RUN"
+    Code "10"
+    Code "20"
 
-    "1030 DY=0"
-    "2000 POKE ((Y*40)+X) CHR$(32)"
+    Rem "Create a ball moving right"
+    Code "PRINT CHR$(147);"
+    Code "1000 X=0"
+    Code "2000 POKE X CHR$(32)"
+    Code "2010 X=X+1"
+    Code "2020 POKE X CHR$(209)"
+    Code "2030 GOTO 2000"
+    Code "RUN"
 
-    "2070 IF Y=25 THEN DY=0-1"
-    "2080 IF Y=25 THEN Y=23"
-    "2090 IF Y<0 THEN DY=1"
-    "2100 IF Y<0 THEN Y=2"
+    Rem "Create a ball bouncing left right"
+    Code "PRINT CHR$(147);"
+    Code "LIST"
+    Code "1010 DX=1"
+    Code "1010 Y=0"
+    Code "1020 DX=1"
+    Code "1030 DY=1"
+    Code "2010 X=X+DX"
+    Code "2020 Y=Y+DY"
+    Code "2030 IF X=40 THEN DX=0-1"
+    Code "2040 IF X=40 THEN X=38"
+    Code "2050 IF X<0 THEN DX=1"
+    Code "2060 IF X<0 THEN X=2"
+    Code "2200 POKE ((Y*40)+X) CHR$(209)"
+    Code "2210 GOTO 2000"
+    Code "RUN"
 
-    "1030 DY=1"
+    Rem "Oops, try again with DY=0"    
+    Code "1030 DY=0"
+    Code "RUN"
+  
+    Rem "Add bouncing from top and bottom"
+    Code "PRINT CHR$(147);"
+    Code "LIST"
+    Code "2000 POKE ((Y*40)+X) CHR$(32)"
+    Code "2070 IF Y=25 THEN DY=0-1"
+    Code "2080 IF Y=25 THEN Y=23"
+    Code "2090 IF Y<0 THEN DY=1"
+    Code "2100 IF Y<0 THEN Y=2"
+    Code "RUN"
 
-    "10 K$=\"\""
-    "20 GET$ K$"                             
-    "30 IF K$=\"\" THEN GOTO 20"
-    "40 PRINT ASC(K$)"
-    "50 STOP"
+    Rem "Oops, try again with DY=1"
+    Code "1030 DY=1"
+    Code "RUN"
 
-    "1040 P=10"
-    "2500 K$=\"\""
-    "2510 K=0"
-    "2520 GET$ K$"
-    "2530 IF K$<>\"\" THEN K=ASC(K$)"
-    "2540 IF K=145 THEN P=P-1"
-    "2550 IF K=17 THEN P=P+1"
-    "2560 POKE ((P-1)*40) CHR$(32)"
-    "2561 POKE ((P+0)*40) CHR$(182)"
-    "2562 POKE ((P+1)*40) CHR$(182)"
-    "2563 POKE ((P+2)*40) CHR$(182)"
-    "2564 POKE ((P+3)*40) CHR$(182)"
-    "2565 POKE ((P+4)*40) CHR$(182)"
-    "2566 POKE ((P+5)*40) CHR$(32)"
-    "2570 GOTO 2500"
+    Rem "Figure out how to handle input"    
+    Code "PRINT CHR$(147);"
+    Code "10 K$=\"\""
+    Code "20 GET$ K$"                             
+    Code "30 IF K$=\"\" THEN GOTO 20"
+    Code "40 PRINT ASC(K$)"
+    Code "50 STOP"
+
+    Rem "Type some key e.g. up arrow"    
+    Code "RUN"
+    Rem "Type some key e.g. down arrow"    
+    Code "RUN"
+
+    Code "1040 P=10"
+    Code "2500 K$=\"\""
+    Code "2510 K=0"
+    Code "2520 GET$ K$"
+    Code "2530 IF K$<>\"\" THEN K=ASC(K$)"
+    Code "2540 IF K=145 THEN P=P-1"
+    Code "2550 IF K=17 THEN P=P+1"
+    Code "2560 POKE ((P-1)*40) CHR$(32)"
+    Code "2561 POKE ((P+0)*40) CHR$(182)"
+    Code "2562 POKE ((P+1)*40) CHR$(182)"
+    Code "2563 POKE ((P+2)*40) CHR$(182)"
+    Code "2564 POKE ((P+3)*40) CHR$(182)"
+    Code "2565 POKE ((P+4)*40) CHR$(182)"
+    Code "2566 POKE ((P+5)*40) CHR$(32)"
+    Code "2570 GOTO 2500"
 
     // "P=10"
     // "GOTO 2500"
-    "2560 IF P>0 THEN POKE ((P-1)*40) CHR$(32)"
-    "2566 IF P<20 THEN POKE ((P+5)*40) CHR$(32)"
-    "2551 IF P<0 THEN P=0"
-    "2552 IF P>20 THEN P=20"
+    Code "2560 IF P>0 THEN POKE ((P-1)*40) CHR$(32)"
+    Code "2566 IF P<20 THEN POKE ((P+5)*40) CHR$(32)"
+    Code "2551 IF P<0 THEN P=0"
+    Code "2552 IF P>20 THEN P=20"
 
     // "GOTO 1000"
-    "2050 IF X<1 THEN DX=1"
-    "2060 IF X<1 THEN X=3"
+    Code "2050 IF X<1 THEN DX=1"
+    Code "2060 IF X<1 THEN X=3"
     // "GOTO 1000"
 
-    "2210"
-    "2570 GOTO 2000"
-    "2021 IF (X=0) AND (Y<P) THEN GOTO 3000"
-    "2022 IF (X=0) AND (Y>(P+4)) THEN GOTO 3000"
-    "3000 STOP"
+    Code "2210"
+    Code "2570 GOTO 2000"
+    Code "2021 IF (X=0) AND (Y<P) THEN GOTO 3000"
+    Code "2022 IF (X=0) AND (Y>(P+4)) THEN GOTO 3000"
+    Code "3000 STOP"
     
-    "10"
-    "20"
-    "30"
-    "40"
-    "50"
+    Code "10"
+    Code "20"
+    Code "30"
+    Code "40"
+    Code "50"
 
-    "900 PRINT CHR$(147)"
-    "3000 PRINT CHR$(147);"
-    "3010 S=0"
-    "3030 S=S+1"
-    "3040 PRINT \"\""
-    "3050 IF S<11 THEN GOTO 3030"
-    "3060 PRINT \"               GAME OVER\""
+    Code "900 PRINT CHR$(147)"
+    Code "3000 PRINT CHR$(147);"
+    Code "3010 S=0"
+    Code "3030 S=S+1"
+    Code "3040 PRINT \"\""
+    Code "3050 IF S<11 THEN GOTO 3030"
+    Code "3060 PRINT \"               GAME OVER\""
 
-   ] |> List.fold (fun p l -> input l p) []
+   |] 
+   
+   //|> List.fold (fun p l -> input l p) []
 
   printScreen ()
     (*
@@ -520,3 +557,27 @@ module Browser =
     |> input "20 GOTO 10"
     //|> input "RUN"
     //*)
+
+  //prog <- inputs |> Seq.fold (fun p l -> match l with Code c when c <> "RUN" -> input c p | _ -> p) []
+//(*
+
+  window.onload <- fun _ ->
+    let h = float (100 * inputs.Length) + window.innerHeight
+    window.document.body.setAttribute("style", "height:" + string h + "px")
+    let mutable lastLine = -1
+    window.onscroll <- fun e ->
+      let currentLine = int window.scrollY / 100
+      //printf "%A, current line=%A, previous=%A" (int window.scrollY) currentLine lastLine
+      if currentLine > lastLine then
+        running <- false
+        for l in lastLine + 1 .. currentLine do
+          match inputs.[l] with
+          | Rem s ->
+              document.getElementById("rem").innerText <- s
+          | Code c ->
+              print c
+              newLine ()
+              printScreen()
+              prog <- input c prog
+        lastLine <- currentLine
+        //*)

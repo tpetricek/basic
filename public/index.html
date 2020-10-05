@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="shortcut icon" href="fable.ico" />
   <style>
-    pre {
+    #out {
       background: #0000AA;
       color: #0088FF;
       width:40em;
@@ -17,13 +17,24 @@
       src: url(C64_Pro_Mono-STYLE.woff2);
     }
 
-    pre {
+    #out {
       font-family: PETSCII;
+    }
+    #rem {
+      font-size:20pt;
+    }
+    #screen {
+      position:fixed;
+      top:0px;
+      left:0px;
     }
   </style>
 </head>
 <body>
-    <pre id="out"></pre>
+    <div id="screen">
+      <pre id="out"></pre>
+      <pre id="rem"></pre>
+    </div>
     <script src="bundle.js"></script>
 </body>
 </html>

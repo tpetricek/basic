@@ -168,7 +168,7 @@ let rec parseInput toks =
 //parseInput (tokenizeString "30 GOTO 20")
 
 type Program = 
-  list<int * Command>
+  list<int * string * Command>
 
 let rec update (line, src, cmd) = function
   | [] -> [line, src, cmd]
@@ -178,51 +178,65 @@ let rec update (line, src, cmd) = function
   | (l, s, c)::p when line < l -> (line, src, cmd)::(l, s, c)::p
   | (l, s, c)::p -> (l, s, c)::(update (line, src, cmd) p)
 
-let rnd = System.Random()
-let variables = System.Collections.Generic.Dictionary<string, Value>()
-let mutable screen = Array.init 25 (fun _ -> Array.create 40 ' ')
-let mutable cursor = 0, 0
+type State = 
+  { Random : System.Random 
+    Variables : Map<string, Value> 
+    Screen : char[][]
+    Cursor : int * int 
+    Program : Program }
 
-let newLine () = 
-  let cl, cc = cursor
-  cursor <- 
-    if cl + 1 >= 25 then 
-      screen <- Array.init 25 (fun l -> Array.init 40 (fun c -> if l = 24 then ' ' else screen.[l+1].[c]))
-      24, 0
-    else cl+1, 0
+and Resumption = 
+  | More of State * (State -> Resumption)
+  | GetKey of State * (State -> string -> Resumption)
+  | Done of State
 
-let backSpace () = 
-  let cl, cc = cursor
-  cursor <- 
+let newLine (state & { Cursor = cl, _ }) = 
+  if cl + 1 >= 25 then 
+    { state with 
+        Screen = Array.init 25 (fun l -> 
+          if l = 24 then Array.create 40 ' '
+          else state.Screen.[l+1] )
+        Cursor = 24, 0 }
+  else { state with Cursor = cl+1, 0 }
+
+let backSpace (state & { Cursor = cl, cc }) = 
+  let cl, cc =
     if cc - 1 < 0 then 
       if cl - 1 < 0 then 0, 39
       else cl - 1, 39
     else cl, cc-1
-  let cl, cc = cursor
-  screen.[cl].[cc] <- ' '
+  { state with 
+      Cursor = cl, cc
+      Screen = Array.init 25 (fun l -> 
+        if l = cl then Array.init 40 (fun c -> if c = cc then ' ' else state.Screen.[l].[c]) 
+        else state.Screen.[l]) }
 
-let print s =
+let print s state =
+  let mutable state = state
   for c in s do 
-    let cl, cc = cursor
+    let cl, cc = state.Cursor
     if int c = 57491 then 
-      screen <- Array.init 25 (fun _ -> Array.create 40 ' ')
-      cursor <- 0, 0
+      state <- { state with Screen = Array.init 25 (fun _ -> Array.create 40 ' '); Cursor = 0, 0 }
     else
-      screen.[cl].[cc] <- c
-      cursor <- 
-        if cc + 1 >= 40 then      
-          if cl + 1 >= 25 then 
-            screen <- Array.init 25 (fun l -> Array.init 40 (fun c -> if l = 24 then ' ' else screen.[l+1].[c]))
-            24, 0
-          else cl + 1, 0
-        else cl, cc + 1
-      
-let rec evaluate = function
+      let screen = Array.init 25 (fun l -> 
+        if l = cl then Array.init 40 (fun i -> if i = cc then c else state.Screen.[l].[i]) 
+        else state.Screen.[l]) 
+      if cc + 1 >= 40 then      
+        if cl + 1 >= 25 then 
+          let screen = Array.init 25 (fun l -> 
+            if l = 24 then Array.create 40 ' '
+            else state.Screen.[l+1] )
+          state <- { state with Cursor = 24, 0; Screen = screen }
+        else state <- { state with Screen = screen; Cursor = cl + 1, 0 }
+      else state <- { state with Screen = screen; Cursor = cl, cc + 1 }
+  state
+  
+let rec evaluate state = function
   | Const v -> v
   | Variable(v) ->
-      variables.[v]
+      state.Variables.[v]
   | Binary(c, l, r) -> 
-      match evaluate l, evaluate r with 
+      match evaluate state l, evaluate state r with 
       | BoolValue l, BoolValue r -> 
           match c with 
           | ['&'] -> BoolValue (l && r)
@@ -245,16 +259,16 @@ let rec evaluate = function
           | _ -> failwithf "Operator %A not supported" c
       | _ -> failwith "Binary expects matching arguments"
   | Function("RND", [arg]) ->
-      match evaluate arg with 
-      | NumberValue arg -> NumberValue(float (rnd.Next(int arg + 1)))
+      match evaluate state arg with 
+      | NumberValue arg -> NumberValue(float (state.Random.Next(int arg + 1)))
       | _ -> failwith "RND requires numeric argument"
   | Function("CHR$", [arg]) ->
-      match evaluate arg with 
+      match evaluate state arg with 
       | NumberValue arg -> 
           StringValue(chrC64 (int arg))
       | _ -> failwith "CHR$ expects numeric argument"
   | Function("ASC", [arg]) ->
-      match evaluate arg with 
+      match evaluate state arg with 
       | StringValue arg -> 
           NumberValue(float (int arg.[0]))
       | _ -> failwith "ASC expects string argument"
@@ -266,111 +280,156 @@ let format = function
   | BoolValue true -> "TRUE"
   | BoolValue false -> "FALSE"
 
-type Resumption = 
-  | More of (unit -> Resumption)
-  | GetKey of (string -> Resumption)
-  | Done
-
-let rec run (ln, _, cmd) program = 
-  let next () = 
+let rec run (ln, _, cmd) state (program:Program) = 
+  let next state = 
     if ln <> -1 then 
       match program |> List.tryFind (fun (l, _, _) -> l > ln) with 
-      | Some ln -> run ln program
-      | _ -> Done
-    else Done 
+      | Some ln -> run ln state program
+      | _ -> Done state
+    else Done state
   match cmd with 
-  | Stop -> Done
-  | Empty -> Done
+  | Stop -> Done state
+  | Empty -> Done state
   | List ->
+      let mutable state = state
       for _, s, _ in program do 
-        print s
+        state <- state |> print s |> newLine
         printf "%s" s
-        newLine ()
-      Done
+      Done state
   | Run ->
       if not (List.isEmpty program) then 
-        More (fun () -> run (List.head program) program)
-      else Done
+        More (state, fun state -> run (List.head program) state program)
+      else Done state
   | Goto lbl ->
       match program |> List.tryFind (fun (l, _, _) -> l = lbl) with 
-      | Some ln -> More (fun () -> run ln program)
+      | Some ln -> More (state, fun state -> run ln state program)
       | None -> failwithf "Line %d not found in program: %A" lbl program
   | If(cond, cmd) ->
-      if evaluate cond = BoolValue true then 
-        run (ln, "", cmd) program
+      if evaluate state cond = BoolValue true then 
+        run (ln, "", cmd) state program
       else 
-        next ()
+        next state
   | Get var ->
-      GetKey (fun s ->
-        variables.[var] <- StringValue s
-        next () )
-  | _ ->
-    match cmd with 
-    | Stop | Empty | Get _ | List | Run | Goto _ | If _ -> failwith "should not happen"
-    | Assign(v, expr) ->
-        variables.[v] <- evaluate expr
-    | Poke(loc, v) ->
-        match evaluate loc, evaluate v with 
-        | NumberValue n, StringValue s when int n < 40*25->
-            screen.[int n/40].[int n%40] <- s.[0]
-        | _ -> failwith "wrong arguments for POKE"
-    | Print(e, nl) ->
-        print (format (evaluate e))
-        if nl then newLine ()
-    next ()
+      GetKey (state, fun state s ->
+        next { state with Variables = Map.add var (StringValue s) state.Variables }
+      )
+  | Assign(v, expr) ->
+      next { state with Variables = Map.add v (evaluate state expr) state.Variables }
+  | Poke(loc, v) ->
+      match evaluate state loc, evaluate state v with 
+      | NumberValue n, StringValue s when int n < 40*25->
+          let screen = Array.init 25 (fun l ->
+            if l = int n/40 then Array.init 40 (fun c -> if c = int n%40 then s.[0] else state.Screen.[l].[c])
+            else state.Screen.[l] )
+          next { state with Screen = screen }
+      | _ -> failwith "wrong arguments for POKE"
+  | Print(e, nl) ->
+      let state = print (format (evaluate state e)) state 
+      let state = if nl then newLine state else state
+      next state
 
 
-module Console = 
-  let printScreen () =
-    (*try 
-      System.Console.CursorLeft <- 0
-      System.Console.CursorTop <- 0
-    with _ -> ()*)
-    for l in 0 .. 24 do
-      for c in 0 .. 39 do        
-        System.Console.Write(screen.[l].[c])
-      System.Console.WriteLine()
+let initial =
+  { Random = System.Random()
+    Variables = Map.empty
+    Screen = Array.init 25 (fun _ -> Array.create 40 ' ')
+    Cursor = 0, 0 
+    Program = [] }
 
-  let rec finish = function
-    | Done -> printScreen()
-    | GetKey _ -> failwith "TBD"
-    | More f -> 
-        let r = f () 
-        printScreen()
-        finish r
+type Message = 
+  | Input of string
+  | Tick of Resumption
 
-  let input src program = 
-    match parseInput (tokenizeString src) with 
-    | Some(ln), cmd -> update (ln, src, cmd) program
-    | None, cmd -> run (-1, "", cmd) program |> finish; program
-    
-  let nada () = 
-    []
-    |> input "2200 POKE ((Y*40)+X) CHR$(209)"
-    |> input "10 X = 0"
-    |> input "20 PRINT X"
-    |> input "30 X = X + 1"
-    |> input "40 IF X < 30 THEN GOTO 20"
-    |> input "RUN"
+  (*
 
+let rec finish = function
+  | Done state -> running <- false; printScreen()
+  | GetKey f -> 
+      let s = 
+        if List.isEmpty inpbuf then "" else 
+          let h = inpbuf.Head
+          inpbuf <- inpbuf.Tail
+          h
+      let r = f s
+      printScreen()
+      finish r
+  | More f ->    
+      window.setTimeout
+        ( (fun () -> 
+              if running then
+                let r = f ()
+                printScreen()
+                finish r), 50 )
+      |> ignore
+      *)
+let input (src:string) state = 
+  match parseInput (tokenizeString src) with 
+  | Some(ln), cmd -> 
+      Done({ state with Program = update (ln, src, cmd) state.Program })
+  | None, cmd -> 
+      run (-1, "", cmd) state state.Program
+  
+type RunAgent() = 
+  let printScreen = Event<_>()
+  let agent = MailboxProcessor.Start(fun inbox ->    
+
+    let rec accept src state = async {
+      let state = print src state |> newLine
+      printScreen.Trigger(state.Screen)
+      return! run (input src state) }
+
+    and ready state = async { 
+      match! inbox.Receive() with
+      | Input src ->
+          return! accept src state
+      | Tick _ -> 
+          return! ready state } // should not happen
+
+    and run resump = async {
+      match resump with 
+      | Done state -> 
+          printScreen.Trigger(state.Screen)
+          return! ready state
+      | More(state, f) ->
+          printScreen.Trigger(state.Screen)
+          let op = async {
+            do! Async.Sleep(10)
+            let r = f state
+            //printScreen.Trigger(state.Screen)
+            inbox.Post(Tick r) }
+          Async.StartImmediate(op)
+          return! running state }
+
+    and running state = async {
+      match! inbox.Receive() with 
+      | Tick resump -> return! run resump
+      | Input src -> return! accept src state }
+
+    ready initial )
+
+  member x.Input(src) = agent.Post(Input src)
+  member x.PrintScreen = printScreen.Publish
+
+let agent = RunAgent() 
+
+(* 
 module Browser = 
   open Browser.Dom
 
   let outpre = document.getElementById("out")
-  let mutable prog = [] 
   let mutable instr = ""
   let mutable running = false
   let mutable inpbuf = []
 
-  let printScreen () =
+  let printScreen state =
     let s = 
       [| for l in 0 .. 24 do
-           for c in 0 .. 39 do yield screen.[l].[c]
+           for c in 0 .. 39 do yield state.Screen.[l].[c]
            yield '\n' |]
     outpre.innerText <- System.String(s)
 
   let rec finish = function
-    | Done -> running <- false; printScreen()
+    | Done state -> running <- false; printScreen()
     | GetKey f -> 
         let s = 
           if List.isEmpty inpbuf then "" else 
@@ -424,132 +483,135 @@ module Browser =
       with e ->
         printf "Something went wrong: %s" e.Message
       instr <- ""
+*)  
+type Input = 
+  | Code of string
+  | Rem of string
+
+let inputs = 
+  [|
+  Rem "Start with simple hello world..."
+  Code "PRINT \"HELLO WORLD\""
+
+  Rem "Create the famous maze"
+  Code "10 PRINT CHR$(147);"
+  Code "20 PRINT CHR$(205.5 + RND(1));"
+  Code "30 GOTO 20"
+  Code "RUN"
+  Code "10"
+  Code "20"
+  Code "30"
+
+  Rem "Create a ball moving right"
+  Code "PRINT CHR$(147);"
+  Code "1000 X=0"
+  Code "2000 POKE X CHR$(32)"
+  Code "2010 X=X+1"
+  Code "2020 POKE X CHR$(209)"
+  Code "2030 GOTO 2000"
+  Code "RUN"
+
+  Rem "Create a ball bouncing left right"
+  Code "PRINT CHR$(147);"
+  Code "LIST"
+  Code "1010 DX=1"
+  Code "1010 Y=0"
+  Code "1020 DX=1"
+  Code "1030 DY=1"
+  Code "2010 X=X+DX"
+  Code "2020 Y=Y+DY"
+  Code "2030 IF X=40 THEN DX=0-1"
+  Code "2040 IF X=40 THEN X=38"
+  Code "2050 IF X<0 THEN DX=1"
+  Code "2060 IF X<0 THEN X=2"
+  Code "2200 POKE ((Y*40)+X) CHR$(209)"
+  Code "2210 GOTO 2000"
+  Code "RUN"
+
+  Rem "Oops, try again with DY=0"    
+  Code "1030 DY=0"
+  Code "RUN"
   
-  type Input = 
-    | Code of string
-    | Rem of string
-  let inputs = 
-   [|
-    Rem "Start with simple hello world..."
-    Code "PRINT \"HELLO WORLD\""
+  Rem "Add bouncing from top and bottom"
+  Code "PRINT CHR$(147);"
+  Code "LIST"
+  Code "2000 POKE ((Y*40)+X) CHR$(32)"
+  Code "2070 IF Y=25 THEN DY=0-1"
+  Code "2080 IF Y=25 THEN Y=23"
+  Code "2090 IF Y<0 THEN DY=1"
+  Code "2100 IF Y<0 THEN Y=2"
+  Code "RUN"
 
-    Rem "Create the famous maze"
-    Code "10 PRINT CHR$(205.5 + RND(1));"
-    Code "20 GOTO 10"
-    Code "RUN"
-    Code "10"
-    Code "20"
+  Rem "Oops, try again with DY=1"
+  Code "1030 DY=1"
+  Code "RUN"
 
-    Rem "Create a ball moving right"
-    Code "PRINT CHR$(147);"
-    Code "1000 X=0"
-    Code "2000 POKE X CHR$(32)"
-    Code "2010 X=X+1"
-    Code "2020 POKE X CHR$(209)"
-    Code "2030 GOTO 2000"
-    Code "RUN"
+  Rem "Figure out how to handle input"    
+  Code "PRINT CHR$(147);"
+  Code "10 K$=\"\""
+  Code "20 GET$ K$"                             
+  Code "30 IF K$=\"\" THEN GOTO 20"
+  Code "40 PRINT ASC(K$)"
+  Code "50 STOP"
 
-    Rem "Create a ball bouncing left right"
-    Code "PRINT CHR$(147);"
-    Code "LIST"
-    Code "1010 DX=1"
-    Code "1010 Y=0"
-    Code "1020 DX=1"
-    Code "1030 DY=1"
-    Code "2010 X=X+DX"
-    Code "2020 Y=Y+DY"
-    Code "2030 IF X=40 THEN DX=0-1"
-    Code "2040 IF X=40 THEN X=38"
-    Code "2050 IF X<0 THEN DX=1"
-    Code "2060 IF X<0 THEN X=2"
-    Code "2200 POKE ((Y*40)+X) CHR$(209)"
-    Code "2210 GOTO 2000"
-    Code "RUN"
+  Rem "Type some key e.g. up arrow"    
+  Code "RUN"
+  Rem "Type some key e.g. down arrow"    
+  Code "RUN"
 
-    Rem "Oops, try again with DY=0"    
-    Code "1030 DY=0"
-    Code "RUN"
-  
-    Rem "Add bouncing from top and bottom"
-    Code "PRINT CHR$(147);"
-    Code "LIST"
-    Code "2000 POKE ((Y*40)+X) CHR$(32)"
-    Code "2070 IF Y=25 THEN DY=0-1"
-    Code "2080 IF Y=25 THEN Y=23"
-    Code "2090 IF Y<0 THEN DY=1"
-    Code "2100 IF Y<0 THEN Y=2"
-    Code "RUN"
+  Code "1040 P=10"
+  Code "2500 K$=\"\""
+  Code "2510 K=0"
+  Code "2520 GET$ K$"
+  Code "2530 IF K$<>\"\" THEN K=ASC(K$)"
+  Code "2540 IF K=145 THEN P=P-1"
+  Code "2550 IF K=17 THEN P=P+1"
+  Code "2560 POKE ((P-1)*40) CHR$(32)"
+  Code "2561 POKE ((P+0)*40) CHR$(182)"
+  Code "2562 POKE ((P+1)*40) CHR$(182)"
+  Code "2563 POKE ((P+2)*40) CHR$(182)"
+  Code "2564 POKE ((P+3)*40) CHR$(182)"
+  Code "2565 POKE ((P+4)*40) CHR$(182)"
+  Code "2566 POKE ((P+5)*40) CHR$(32)"
+  Code "2570 GOTO 2500"
 
-    Rem "Oops, try again with DY=1"
-    Code "1030 DY=1"
-    Code "RUN"
+  // "P=10"
+  // "GOTO 2500"
+  Code "2560 IF P>0 THEN POKE ((P-1)*40) CHR$(32)"
+  Code "2566 IF P<20 THEN POKE ((P+5)*40) CHR$(32)"
+  Code "2551 IF P<0 THEN P=0"
+  Code "2552 IF P>20 THEN P=20"
 
-    Rem "Figure out how to handle input"    
-    Code "PRINT CHR$(147);"
-    Code "10 K$=\"\""
-    Code "20 GET$ K$"                             
-    Code "30 IF K$=\"\" THEN GOTO 20"
-    Code "40 PRINT ASC(K$)"
-    Code "50 STOP"
+  // "GOTO 1000"
+  Code "2050 IF X<1 THEN DX=1"
+  Code "2060 IF X<1 THEN X=3"
+  // "GOTO 1000"
 
-    Rem "Type some key e.g. up arrow"    
-    Code "RUN"
-    Rem "Type some key e.g. down arrow"    
-    Code "RUN"
-
-    Code "1040 P=10"
-    Code "2500 K$=\"\""
-    Code "2510 K=0"
-    Code "2520 GET$ K$"
-    Code "2530 IF K$<>\"\" THEN K=ASC(K$)"
-    Code "2540 IF K=145 THEN P=P-1"
-    Code "2550 IF K=17 THEN P=P+1"
-    Code "2560 POKE ((P-1)*40) CHR$(32)"
-    Code "2561 POKE ((P+0)*40) CHR$(182)"
-    Code "2562 POKE ((P+1)*40) CHR$(182)"
-    Code "2563 POKE ((P+2)*40) CHR$(182)"
-    Code "2564 POKE ((P+3)*40) CHR$(182)"
-    Code "2565 POKE ((P+4)*40) CHR$(182)"
-    Code "2566 POKE ((P+5)*40) CHR$(32)"
-    Code "2570 GOTO 2500"
-
-    // "P=10"
-    // "GOTO 2500"
-    Code "2560 IF P>0 THEN POKE ((P-1)*40) CHR$(32)"
-    Code "2566 IF P<20 THEN POKE ((P+5)*40) CHR$(32)"
-    Code "2551 IF P<0 THEN P=0"
-    Code "2552 IF P>20 THEN P=20"
-
-    // "GOTO 1000"
-    Code "2050 IF X<1 THEN DX=1"
-    Code "2060 IF X<1 THEN X=3"
-    // "GOTO 1000"
-
-    Code "2210"
-    Code "2570 GOTO 2000"
-    Code "2021 IF (X=0) AND (Y<P) THEN GOTO 3000"
-    Code "2022 IF (X=0) AND (Y>(P+4)) THEN GOTO 3000"
-    Code "3000 STOP"
+  Code "2210"
+  Code "2570 GOTO 2000"
+  Code "2021 IF (X=0) AND (Y<P) THEN GOTO 3000"
+  Code "2022 IF (X=0) AND (Y>(P+4)) THEN GOTO 3000"
+  Code "3000 STOP"
     
-    Code "10"
-    Code "20"
-    Code "30"
-    Code "40"
-    Code "50"
+  Code "10"
+  Code "20"
+  Code "30"
+  Code "40"
+  Code "50"
 
-    Code "900 PRINT CHR$(147)"
-    Code "3000 PRINT CHR$(147);"
-    Code "3010 S=0"
-    Code "3030 S=S+1"
-    Code "3040 PRINT \"\""
-    Code "3050 IF S<11 THEN GOTO 3030"
-    Code "3060 PRINT \"               GAME OVER\""
+  Code "900 PRINT CHR$(147)"
+  Code "3000 PRINT CHR$(147);"
+  Code "3010 S=0"
+  Code "3030 S=S+1"
+  Code "3040 PRINT \"\""
+  Code "3050 IF S<11 THEN GOTO 3030"
+  Code "3060 PRINT \"               GAME OVER\""
 
-   |] 
+  |] 
    
    //|> List.fold (fun p l -> input l p) []
 
-  printScreen ()
+//  printScreen ()
     (*
   prog <- 
     []
@@ -560,24 +622,32 @@ module Browser =
 
   //prog <- inputs |> Seq.fold (fun p l -> match l with Code c when c <> "RUN" -> input c p | _ -> p) []
 //(*
+open Browser.Dom
 
-  window.onload <- fun _ ->
-    let h = float (100 * inputs.Length) + window.innerHeight
-    window.document.body.setAttribute("style", "height:" + string h + "px")
-    let mutable lastLine = -1
-    window.onscroll <- fun e ->
-      let currentLine = int window.scrollY / 100
-      //printf "%A, current line=%A, previous=%A" (int window.scrollY) currentLine lastLine
-      if currentLine > lastLine then
-        running <- false
-        for l in lastLine + 1 .. currentLine do
-          match inputs.[l] with
-          | Rem s ->
-              document.getElementById("rem").innerText <- s
-          | Code c ->
-              print c
-              newLine ()
-              printScreen()
-              prog <- input c prog
-        lastLine <- currentLine
-        //*)
+let outpre = document.getElementById("out")
+
+let printScreen (screen:_[][]) =
+  let s = 
+    [| for l in 0 .. 24 do
+         for c in 0 .. 39 do yield screen.[l].[c]
+         yield '\n' |]
+  outpre.innerText <- System.String(s) 
+
+agent.PrintScreen.Add(printScreen)
+printScreen initial.Screen
+
+window.onload <- fun _ ->
+  let h = float (100 * inputs.Length) + window.innerHeight
+  window.document.body.setAttribute("style", "height:" + string h + "px")
+  let mutable lastLine = -1
+  window.onscroll <- fun e ->
+    let currentLine = int window.scrollY / 100
+    if currentLine > lastLine then
+      for l in lastLine + 1 .. currentLine do
+        match inputs.[l] with
+        | Rem s ->
+            document.getElementById("rem").innerText <- s
+        | Code c ->
+            agent.Input(c)
+      lastLine <- currentLine
+      //*)

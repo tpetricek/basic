@@ -5,35 +5,191 @@
   <meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="shortcut icon" href="fable.ico" />
+  <link href="https://fonts.googleapis.com/css2?family=Kreon:wght@300;500;700&family=PT+Sans:ital@0;1&display=swap" rel="stylesheet">
   <style>
+    body {
+      font-family:'PT Sans',sans-serif;
+      color:#d0d0e0;
+      background:#00009b;
+    }
+    .container {
+      max-width:1200px;
+      margin:0px auto 0px auto;
+    }
+    h1, h2, h3 {
+      font-family:Kreon, serif;
+      font-weight:300;
+    }
+    p {
+      font-size:13pt;
+    }
+    h2 {
+      margin-top:250px;
+    }
+    h1 {
+      font-size:25pt;
+      margin:30px 10px 50px 10px;
+      text-align:center;
+    }
+    article {
+      margin:20px 620px 1000px 20px;
+    }
+    button {
+      color: inherit;
+      background: transparent;
+      font-size: 13pt;
+      padding: 5px 15px 5px 15px;
+      cursor: pointer;
+      border: solid 3px #d0d0e0;
+      border-radius: 4px;
+    }
+    button:active, button:hover {
+      background: #ffffff30;
+      outline:0;
+    }
+
+    #right {
+      max-width: 1200px;
+      width: 100%;
+      position: fixed;
+    }
+    #screen {
+      padding:10px;
+      background: #000080;
+      position: absolute;
+      top:50px;
+      right: 0px;
+      line-height:16px;
+    }
     #out {
-      background: #0000AA;
+      width: 40em;
+      background: #000080;
       color: #0088FF;
-      width:40em;
-      overflow:hidden;
+      overflow: hidden;
+      font-size: 14px;
+      font-family: PETSCII;
+      margin:0px;
+    }
+    #cursor {
+      font-size: 14px;
+      font-family: PETSCII;
+      position: absolute;
+      left: 0em;
+      top: 0em;
+      width: 1em;
+      height: 1em;
+      background: #0088FF;
     }
     @font-face {
       font-family: PETSCII;
       src: url(C64_Pro_Mono-STYLE.woff2);
     }
 
-    #out {
-      font-family: PETSCII;
-    }
     #rem {
-      font-size:20pt;
-    }
-    #screen {
-      position:fixed;
-      top:0px;
-      left:0px;
+      position:absolute;
+      right:0px;
+      top:400px;
+      font-size:10pt;
     }
   </style>
 </head>
 <body>
-    <div id="screen">
-      <pre id="out"></pre>
-      <pre id="rem"></pre>
+  <div class="container">
+    <div id="right">
+    <div id="screen" style="visibility:hidden">
+      <div style="position:relative">
+        <pre id="out"></pre>
+        <pre id="rem"></pre>
+        <div id="cursor" style="visibility:hidden"></div>
+      </div>
+    </div>
+    </div>
+    <article>
+
+      <h1><strong>History of Programming Interactions</strong>: Commodore BASIC</h1>
+      <p>Bacon ipsum dolor amet short loin doner fatback, corned beef biltong venison flank cow chicken tenderloin short ribs boudin ham hock shankle alcatra. Filet mignon alcatra landjaeger, tri-tip swine fatback ham hock pancetta chislic turkey beef chicken ball tip. Buffalo chuck frankfurter tail flank beef ribs. Kevin chicken pork porchetta. Shoulder drumstick fatback strip steak bacon. Andouille strip steak kevin, boudin ground round biltong cow spare ribs flank sirloin chuck chicken pork.</p>
+      
+      <button id="btn1" class="active">Click to begin</button>
+      <script type="text/c64" id="btn1-code">
+        remove: btn1
+        show: screen
+        show: main
+        show: cursor
+        hidden: PRINT ""
+        hidden: PRINT "    **** COMMODORE 64 BASIC V2 ****"
+        hidden: PRINT ""
+        hidden: PRINT " 64 RAM SYSTEM  38911 BASIC BYTES FREE"
+        hidden: PRINT ""
+        hidden: PRINT "READY."
+      </script>
+
+      <div id="main" style="visibility:hidden">
+
+      <h2>Hello world</h2>
+      <p>Shank bresaola pastrami biltong alcatra kielbasa doner pancetta chicken landjaeger. Short loin ball tip tongue capicola beef swine ham pork loin kevin flank. Strip steak pancetta sausage, pig swine beef ribs boudin. Meatloaf pancetta turducken frankfurter drumstick. Leberkas ham hock jerky andouille brisket venison short loin chuck ball tip spare ribs. Drumstick ground round pastrami rump kielbasa salami tail jowl ham. Beef spare ribs ribeye, salami strip steak flank sirloin chicken shoulder doner kielbasa pork belly chuck shank biltong.</p>
+      <pre>PRINT "HELLO WORLD"</pre>
+      <button id="btn2" class="active">Show me</button>
+      <script type="text/c64" id="btn2-code">
+        eval: PRINT "Hello world!"
+      </script>
+
+      <h2>Famous maze</h2>
+      <p>Bacon ipsum dolor amet short loin doner fatback, corned beef biltong venison flank cow chicken tenderloin short ribs boudin ham hock shankle alcatra. Filet mignon alcatra landjaeger, tri-tip swine fatback ham hock pancetta chislic turkey beef chicken ball tip. Buffalo chuck frankfurter tail flank beef ribs. Kevin chicken pork porchetta. Shoulder drumstick fatback strip steak bacon. Andouille strip steak kevin, boudin ground round biltong cow spare ribs flank sirloin chuck chicken pork.</p>
+      <p>Shank bresaola pastrami biltong alcatra kielbasa doner pancetta chicken landjaeger. Short loin ball tip tongue capicola beef swine ham pork loin kevin flank. Strip steak pancetta sausage, pig swine beef ribs boudin. Meatloaf pancetta turducken frankfurter drumstick. Leberkas ham hock jerky andouille brisket venison short loin chuck ball tip spare ribs. Drumstick ground round pastrami rump kielbasa salami tail jowl ham. Beef spare ribs ribeye, salami strip steak flank sirloin chicken shoulder doner kielbasa pork belly chuck shank biltong.</p>
+      <pre>10 PRINT CHR$(147);
+20 PRINT CHR$(205.5 + RND(1));
+30 GOTO 20
+RUN
+</pre>
+      <button id="btn3" class="active">Show me</button>
+      <script type="text/c64" id="btn3-code">
+        eval: 10 PRINT CHR$(147);
+        eval: 20 PRINT CHR$(205.5 + RND(1));
+        eval: 30 GOTO 20
+        start: RUN
+        show: maze2 after 3500
+      </script>
+
+      <div id="maze2" style="visibility:hidden">
+      <p>Stop it using Ctrl+C. You can see the code using LIST or run it again using RUN.</p>
+      <button id="btn4" class="active">Stop it</button>
+      <script type="text/c64" id="btn4-code">
+        stop
+      </script>
+      <button id="btn5" class="active">List code</button>
+      <script type="text/c64" id="btn5-code">
+        eval: LIST
+      </script>
+      <button id="btn6" class="active">Run again</button>
+      <script type="text/c64" id="btn6-code">
+        start: RUN
+      </script>
+      </div>
+
+      <h2>Famous maze</h2>
+      <p>Bacon ipsum dolor amet short loin doner fatback, corned beef biltong venison flank cow chicken tenderloin short ribs boudin ham hock shankle alcatra. Filet mignon alcatra landjaeger, tri-tip swine fatback ham hock pancetta chislic turkey beef chicken ball tip. Buffalo chuck frankfurter tail flank beef ribs. Kevin chicken pork porchetta. Shoulder drumstick fatback strip steak bacon. Andouille strip steak kevin, boudin ground round biltong cow spare ribs flank sirloin chuck chicken pork.</p>
+      <p>Shank bresaola pastrami biltong alcatra kielbasa doner pancetta chicken landjaeger. Short loin ball tip tongue capicola beef swine ham pork loin kevin flank. Strip steak pancetta sausage, pig swine beef ribs boudin. Meatloaf pancetta turducken frankfurter drumstick. Leberkas ham hock jerky andouille brisket venison short loin chuck ball tip spare ribs. Drumstick ground round pastrami rump kielbasa salami tail jowl ham. Beef spare ribs ribeye, salami strip steak flank sirloin chicken shoulder doner kielbasa pork belly chuck shank biltong.</p>
+      <pre>PRINT CHR$(147);
+1000 X=0
+2000 POKE X CHR$(32)
+2010 X=X+1
+2020 POKE X CHR$(209)
+2030 GOTO 2000
+RUN</pre>
+      <button class="active" id="btn7">Show me</button>
+      <script type="text/c64" id="btn7-code">
+        eval: PRINT CHR$(147);
+        eval: 1000 X=0
+        eval: 2000 POKE X CHR$(32)
+        eval: 2010 X=X+1
+        eval: 2020 POKE X CHR$(209)
+        eval: 2030 GOTO 2000
+        start: RUN
+      </script>
+
+      </div>
+
+    </article>
     </div>
     <script src="bundle.js"></script>
 </body>

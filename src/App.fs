@@ -337,36 +337,101 @@ let initial =
     Program = [] }
 
 type Message = 
+  | Start of bool * string
+  | Evaluate of bool * string
+  
   | Key of string
-  | Input of int * string
-  | Tick of int * Resumption
   | Stop
   | Run
+
+  | Tick of int * Resumption
   
 let input (src:string) state = 
   match parseInput (tokenizeString src) with 
   | Some(ln), cmd -> 
-      Done({ state with Program = update (ln, src, cmd) state.Program })
+      false, Done({ state with Program = update (ln, src, cmd) state.Program })
   | None, cmd -> 
-      run (-1, "", cmd) state state.Program
-  
+      true, run (-1, "", cmd) state state.Program
+
+type Agent<'T>(body) = 
+  let mutable cont = None
+  let mutable queue = []
+
+  member x.Post(m) =
+    printfn "QUEUE: %A" (queue @ [m])
+    match cont with 
+    | None -> queue <- queue @ [m]
+    | Some c -> 
+        cont <- None
+        let h, t = let q = queue @ [m] in q.Head, q.Tail
+        queue <- t
+        c h
+  member x.Receive() = 
+    Async.FromContinuations(fun (c, ec, cc) ->
+      match queue with 
+      | x::xs -> 
+          queue <- xs
+          c x
+      | [] ->
+          cont <- Some c)
+
+  member x.Start() = 
+    body x |> Async.StartImmediate
+    x
+
+  static member Start(f) = Agent(f).Start()
+
 type RunAgent() = 
   let printScreen = Event<_>()
-  let stateCache = System.Collections.Generic.Dictionary<_, _>()
-  let agent = MailboxProcessor.Start(fun inbox ->    
+  let agent = Agent.Start(fun inbox ->    
 
-    let rec accept (pid:int) idx src state = async {
-      let state =
-        if not (stateCache.ContainsKey idx) then 
-          stateCache.[idx] <- state
-        stateCache.[idx]
+    let enter (src:string) state = async {
+      let mutable state = state
+      for c in src do 
+        state <- print [c] state 
+        printScreen.Trigger(state.Screen, state.Cursor)
+        do! Async.Sleep(50)
+      state <- newLine state
+      printScreen.Trigger(state.Screen, state.Cursor)
+      return state }
 
-      let state = print src state |> newLine
-      printScreen.Trigger(state.Screen)
-      return! run [] (pid+1) (input src state) }
+    let rec start (pid:int) prompt src state = async {
+      let! state = if prompt then enter src state else async.Return(state)
+      printScreen.Trigger(state.Screen, state.Cursor)
+      let res = 
+        try           
+          Some(input src state)
+        with e -> 
+          printfn "FAILED (run): %A" e
+          None
+      if res.IsSome then return! run [] (pid+1) res.Value
+      else return! ready pid "" state } 
+
+    and evaluate (pid:int) prompt src state = async {
+      let! state = if prompt then enter src state else async.Return(state)
+      printScreen.Trigger(state.Screen, state.Cursor)
+      let rec eval res = 
+        match res with 
+        | Done st -> st
+        | GetKey _ -> failwith "Cannot run interactive command using 'Eval'"
+        | More(s, f) -> eval (f s)
+      let printReady, state = 
+        try 
+          let printReady, res = input src state
+          printReady, eval res
+        with e -> 
+          printfn "FAILED (run): %A" e
+          true, state
+      let state = 
+        if prompt && printReady then state |> print "READY." |> newLine 
+        else state
+      printScreen.Trigger(state.Screen, state.Cursor)
+      return! ready (pid+1) "" state } 
 
     and ready (pid:int) inbuf state = async { 
-      match! inbox.Receive() with
+      let! msg = inbox.Receive()
+      printfn "READY. RECEIVED: %A" msg
+      match msg with
       | Key k ->
           if k = (char 145).ToString() || k = (char 17).ToString() then
             // Ignore up/down keys because they control scrolling
@@ -374,37 +439,44 @@ type RunAgent() =
           elif k = (char 20).ToString() then
             // backspace
             let state = backSpace state      
-            printScreen.Trigger(state.Screen)
+            printScreen.Trigger(state.Screen, state.Cursor)
             return! ready pid (if inbuf = "" then "" else inbuf.Substring(0, inbuf.Length-1)) state
           else
             // normal actual input
             let state = print k state      
-            printScreen.Trigger(state.Screen)
+            printScreen.Trigger(state.Screen, state.Cursor)
             return! ready pid (inbuf + k) state
       | Run ->
           let state = newLine state
-          printScreen.Trigger(state.Screen)
+          printScreen.Trigger(state.Screen, state.Cursor)
           return! run [] (pid+1) (input inbuf state)
-      | Input(idx, src) ->
-          return! accept pid idx src state
+      | Start(prompt, src) ->
+          return! start pid prompt src state
+      | Evaluate(prompt, src) ->
+          return! evaluate pid prompt src state
       | Stop | Tick _ -> // should not happen
           return! ready pid inbuf state } 
 
-    and run inbuf (pid:int) resump = async {
+    and run inbuf (pid:int) (printReady, resump) = async {
       match resump with 
-      | Done state -> 
-          printScreen.Trigger(state.Screen)
+      | Done state ->
+          let state = 
+            if printReady then print "READY." state |> newLine else state 
+          printScreen.Trigger(state.Screen, state.Cursor)
           return! ready pid "" state
       | GetKey(state, f) ->
-          printScreen.Trigger(state.Screen)
+          printScreen.Trigger(state.Screen, state.Cursor)
           let k, inbuf = 
             if List.isEmpty inbuf then "", []
             else List.head inbuf, List.tail inbuf
-          let r = f state k
-          inbox.Post(Tick(pid, r))
-          return! running pid [] state 
+          try
+            let r = f state k
+            inbox.Post(Tick(pid, r))
+          with e ->
+            printfn "FAILED (key): %A" e
+          return! running pid inbuf state 
       | More(state, f) ->
-          printScreen.Trigger(state.Screen)
+          printScreen.Trigger(state.Screen, state.Cursor)
           let op = async {
             try 
               do! Async.Sleep(50)
@@ -412,16 +484,19 @@ type RunAgent() =
               inbox.Post(Tick(pid, r))
             with e -> printfn "FAILED (async): %A" e }
           Async.StartImmediate(op)
-          return! running pid [] state }
+          return! running pid inbuf state }
 
     and running pid inbuf state = async {
-      match! inbox.Receive() with 
+      let! msg = inbox.Receive()
+      printfn "RUNNING. RECEIVED: %A" msg
+      match msg with
       | Stop -> return! ready pid "" state
       | Run -> return! running pid (inbuf @ [(char 13).ToString()]) state
       | Key k -> return! running pid (inbuf @ [k]) state
-      | Tick(tpid, resump) when tpid = pid -> return! run inbuf pid resump
+      | Tick(tpid, resump) when tpid = pid -> return! run inbuf pid (true, resump)
       | Tick(tpid, resump) -> return! running pid inbuf state
-      | Input(idx, src) -> return! accept pid idx src state }
+      | Start(prompt, src) -> return! start pid prompt src state
+      | Evaluate(prompt, src) -> return! evaluate pid prompt src state}
 
     async { 
       try 
@@ -429,12 +504,13 @@ type RunAgent() =
       with e ->
         printfn "FAILED (main): %A" e })
 
-  member x.Input(idx, src) = agent.Post(Input(idx, src))
+  member x.Start(prompt, src) = agent.Post(Start(prompt, src))
+  member x.Evaluate(prompt, src) = agent.Post(Evaluate(prompt, src))
   member x.Key(k) = agent.Post(Key k)
   member x.Stop() = agent.Post(Stop)
   member x.Run() = agent.Post(Run)
   member x.PrintScreen = printScreen.Publish
-  member x.LastLine = Seq.append [-1] stateCache.Keys |> Seq.max
+//  member x.LastLine = Seq.append [-1] stateCache.Keys |> Seq.max
 
 let agent = RunAgent() 
 
@@ -496,7 +572,9 @@ let inputs =
   Code "10 PRINT CHR$(147);"
   Code "20 PRINT CHR$(205.5 + RND(1));"
   Code "30 GOTO 20"
-  Code "RUN"
+
+  Rem "Type LIST to see it, type RUN to run it...!"
+  
   Code "10"
   Code "20"
   Code "30"
@@ -574,8 +652,9 @@ let inputs =
   Code "2566 POKE ((P+5)*40) CHR$(32)"
   Code "2570 GOTO 2500"
 
-  // "P=10"
-  // "GOTO 2500"
+  Code "P=10"
+  Code "GOTO 2500"
+
   Code "2560 IF P>0 THEN POKE ((P-1)*40) CHR$(32)"
   Code "2566 IF P<20 THEN POKE ((P+5)*40) CHR$(32)"
   Code "2551 IF P<0 THEN P=0"
@@ -609,42 +688,72 @@ let inputs =
   |] 
    
 open Browser.Dom
+open Fable.Core.JsInterop
 
 let outpre = document.getElementById("out")
+let cursor = document.getElementById("cursor") 
 
-let printScreen (screen:_[][]) =
+Async.StartImmediate <| async {
+  while true do
+    for d in ["block"; "none"] do
+      cursor?style?display <- d
+      do! Async.Sleep(500) }
+
+let printScreen (screen:_[][], (cl, cc)) =
   let s = 
     [| for l in 0 .. 24 do
          for c in 0 .. 39 do yield screen.[l].[c]
          yield '\n' |]
   outpre.innerText <- System.String(s) 
+  cursor?style?top <- string (cl * 16) + "px"
+  cursor?style?left <- string cc + "em"
 
 agent.PrintScreen.Add(printScreen)
-printScreen initial.Screen
+printScreen (initial.Screen, initial.Cursor)
 
 window.onkeypress <- fun e ->
   if e.ctrlKey = false && e.key.Length = 1 then
     agent.Key(e.key)
 
-window.onkeyup <- fun e ->  
-  if e.ctrlKey && e.keyCode = 67. then
-    agent.Stop()
-  elif e.keyCode = 13. then
-    agent.Run()
-
-window.onload <- fun _ ->
-  let h = float (100 * inputs.Length) + window.innerHeight
-  window.document.body.setAttribute("style", "height:" + string h + "px")
-  window.onscroll <- fun e ->
-    let currentLine = min (inputs.Length - 1) (int window.scrollY / 100)
-    for l in [agent.LastLine + 1 .. currentLine - 1] @ [currentLine] do
-      match inputs.[l] with
-      | Rem s ->
-          document.getElementById("rem").innerText <- s
-      | Code c ->
-          agent.Input(l, c)
+let els = document.getElementsByClassName("active")
+for i in 0 .. els.length-1 do
+  let btn = els.item(float i) :?> Browser.Types.HTMLButtonElement
+  let code = document.getElementById(btn.id + "-code").innerText
+  let cmds = 
+    [ for ln in code.Split('\n', '\r') do
+        let ln = ln.Trim()
+        let col = ln.IndexOf(':')
+        if col > 0 then 
+          let cmd = ln.Substring(0, col)
+          let arg = ln.Substring(col+1).TrimStart()
+          yield cmd, arg 
+        elif ln <> "" then
+          yield ln, "" ]
+  btn.onclick <- fun _ ->
+    for cmd in cmds do 
+      match cmd with 
+      | "stop", _ -> agent.Stop()
+      | "remove", arg -> document.getElementById(arg).onclick <- ignore
+      | "eval", arg -> agent.Evaluate(true, arg)
+      | "hidden", arg -> agent.Evaluate(false, arg)
+      | "start", arg -> agent.Start(true, arg)
+      | "show", arg -> 
+          let id, ms = 
+            let after = arg.IndexOf(" after ")
+            if after = -1 then arg, 0
+            else arg.Substring(0, after), int (arg.Substring(after+7))            
+          window.setTimeout((fun _ -> 
+            document.getElementById(id)?style?visibility <- "visible"
+            ), ms) |> ignore
+      | cmd, arg -> window.alert("unknown command!\n" + cmd + ": " + arg)
 
 window.onkeydown <- fun e ->
+  printfn "KEYDOWN: %A" (e.ctrlKey, e.keyCode)
+  if e.keyCode = 13. then
+    e.preventDefault()
+    agent.Run()
+  if e.ctrlKey && e.keyCode = 67. then
+    agent.Stop()
   let key = 
     if e.keyCode = 38. then (char 145).ToString() // up
     elif e.keyCode = 40. then (char 17).ToString() // down

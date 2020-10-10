@@ -353,37 +353,10 @@ let input (src:string) state =
   | None, cmd -> 
       true, run (-1, "", cmd) state state.Program
 
-type Agent<'T>(body) = 
-  let mutable cont = None
-  let mutable queue = []
-
-  member x.Post(m) =
-    printfn "QUEUE: %A" (queue @ [m])
-    match cont with 
-    | None -> queue <- queue @ [m]
-    | Some c -> 
-        cont <- None
-        let h, t = let q = queue @ [m] in q.Head, q.Tail
-        queue <- t
-        c h
-  member x.Receive() = 
-    Async.FromContinuations(fun (c, ec, cc) ->
-      match queue with 
-      | x::xs -> 
-          queue <- xs
-          c x
-      | [] ->
-          cont <- Some c)
-
-  member x.Start() = 
-    body x |> Async.StartImmediate
-    x
-
-  static member Start(f) = Agent(f).Start()
 
 type RunAgent() = 
   let printScreen = Event<_>()
-  let agent = Agent.Start(fun inbox ->    
+  let agent = MailboxProcessor.Start(fun inbox ->    
 
     let enter (src:string) state = async {
       let mutable state = state
@@ -429,9 +402,7 @@ type RunAgent() =
       return! ready (pid+1) "" state } 
 
     and ready (pid:int) inbuf state = async { 
-      let! msg = inbox.Receive()
-      printfn "READY. RECEIVED: %A" msg
-      match msg with
+      match! inbox.Receive() with
       | Key k ->
           if k = (char 145).ToString() || k = (char 17).ToString() then
             // Ignore up/down keys because they control scrolling
@@ -449,7 +420,13 @@ type RunAgent() =
       | Run ->
           let state = newLine state
           printScreen.Trigger(state.Screen, state.Cursor)
-          return! run [] (pid+1) (input inbuf state)
+          let res = 
+            try Some(input inbuf state) 
+            with e -> 
+              printfn "FAILED (run): %A" e
+              None
+          if res.IsSome then return! run [] (pid+1) res.Value
+          else return! ready pid "" state
       | Start(prompt, src) ->
           return! start pid prompt src state
       | Evaluate(prompt, src) ->
@@ -487,10 +464,11 @@ type RunAgent() =
           return! running pid inbuf state }
 
     and running pid inbuf state = async {
-      let! msg = inbox.Receive()
-      printfn "RUNNING. RECEIVED: %A" msg
-      match msg with
-      | Stop -> return! ready pid "" state
+      match! inbox.Receive() with
+      | Stop -> 
+          let state = state |> print "READY." |> newLine 
+          printScreen.Trigger(state.Screen, state.Cursor)
+          return! ready pid "" state
       | Run -> return! running pid (inbuf @ [(char 13).ToString()]) state
       | Key k -> return! running pid (inbuf @ [k]) state
       | Tick(tpid, resump) when tpid = pid -> return! run inbuf pid (true, resump)
@@ -712,47 +690,64 @@ agent.PrintScreen.Add(printScreen)
 printScreen (initial.Screen, initial.Cursor)
 
 window.onkeypress <- fun e ->
-  if e.ctrlKey = false && e.key.Length = 1 then
+  if e.ctrlKey = false && e.metaKey = false && e.key.Length = 1 then
     agent.Key(e.key)
+
+let parseCommands (code:string) = 
+  [ for ln in code.Split('\n', '\r') do
+      let ln = ln.Trim()
+      let col = ln.IndexOf(':')
+      if col > 0 then 
+        let cmd = ln.Substring(0, col)
+        let arg = ln.Substring(col+1).TrimStart()
+        yield cmd, arg 
+      elif ln <> "" then
+        yield ln, "" ]
+
+let runCode cmds = 
+  for cmd in cmds do 
+    match cmd with 
+    | "scrollto", arg ->
+        let y1 = window.scrollY 
+        let y2 = document.getElementById(arg).offsetTop - 20.
+        let rec scroll i = 
+          if i <= 20 then
+            window.setTimeout
+              ((fun () -> window.scrollTo(0., y1 + (y2-y1)/20.*float i); scroll (i+1)), 10) 
+            |> ignore
+        scroll 1
+    | "stop", _ -> agent.Stop()
+    | "remove", arg -> document.getElementById(arg).onclick <- ignore
+    | "eval", arg -> agent.Evaluate(true, arg)
+    | "hidden", arg -> agent.Evaluate(false, arg)
+    | "start", arg -> agent.Start(true, arg)
+    | "show", arg -> 
+        let id, ms = 
+          let after = arg.IndexOf(" after ")
+          if after = -1 then arg, 0
+          else arg.Substring(0, after), int (arg.Substring(after+7))            
+        window.setTimeout((fun _ -> 
+          document.getElementById(id)?style?visibility <- "visible"
+          ), ms) |> ignore
+    | cmd, arg -> window.alert("unknown command!\n" + cmd + ": " + arg)
 
 let els = document.getElementsByClassName("active")
 for i in 0 .. els.length-1 do
   let btn = els.item(float i) :?> Browser.Types.HTMLButtonElement
   let code = document.getElementById(btn.id + "-code").innerText
-  let cmds = 
-    [ for ln in code.Split('\n', '\r') do
-        let ln = ln.Trim()
-        let col = ln.IndexOf(':')
-        if col > 0 then 
-          let cmd = ln.Substring(0, col)
-          let arg = ln.Substring(col+1).TrimStart()
-          yield cmd, arg 
-        elif ln <> "" then
-          yield ln, "" ]
-  btn.onclick <- fun _ ->
-    for cmd in cmds do 
-      match cmd with 
-      | "stop", _ -> agent.Stop()
-      | "remove", arg -> document.getElementById(arg).onclick <- ignore
-      | "eval", arg -> agent.Evaluate(true, arg)
-      | "hidden", arg -> agent.Evaluate(false, arg)
-      | "start", arg -> agent.Start(true, arg)
-      | "show", arg -> 
-          let id, ms = 
-            let after = arg.IndexOf(" after ")
-            if after = -1 then arg, 0
-            else arg.Substring(0, after), int (arg.Substring(after+7))            
-          window.setTimeout((fun _ -> 
-            document.getElementById(id)?style?visibility <- "visible"
-            ), ms) |> ignore
-      | cmd, arg -> window.alert("unknown command!\n" + cmd + ": " + arg)
+  let cmds = parseCommands code
+  btn.onclick <- fun _ -> runCode cmds
+
+window.onload <- fun _ ->
+  document.getElementById("onload-code").innerText
+  |> parseCommands |> runCode 
 
 window.onkeydown <- fun e ->
   printfn "KEYDOWN: %A" (e.ctrlKey, e.keyCode)
   if e.keyCode = 13. then
     e.preventDefault()
     agent.Run()
-  if e.ctrlKey && e.keyCode = 67. then
+  if (e.ctrlKey || e.metaKey) && e.keyCode = 67. then
     agent.Stop()
   let key = 
     if e.keyCode = 38. then (char 145).ToString() // up
@@ -763,3 +758,17 @@ window.onkeydown <- fun e ->
   if key <> "" then 
     agent.Key(key)
     e.preventDefault()
+
+let notes = 
+  [ let notes = document.getElementsByClassName("note")
+    for i in 0 .. notes.length-1 do
+      let nt = notes.item(float i)
+      let lnk = document.getElementById(nt.id.Substring(5))
+      yield lnk.offsetTop, nt ]
+
+window.onscroll <- fun _ ->
+  let nt = notes |> Seq.filter (fun (ot, _) -> ot < window.scrollY + 100.) 
+  let _, nt = Seq.append [Seq.head notes] nt |> Seq.last
+  for _, n in notes do n?style?display <- "none"
+  nt?style?display <- "block"
+

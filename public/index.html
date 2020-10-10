@@ -5,12 +5,24 @@
   <meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="shortcut icon" href="fable.ico" />
-  <link href="https://fonts.googleapis.com/css2?family=Kreon:wght@300;500;700&family=PT+Sans:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@500&family=Kreon:wght@300;500;700&family=PT+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <style>
     body {
       font-family:'PT Sans',sans-serif;
-      color:#d0d0e0;
+      color:#f0f0f0;
       background:#00009b;
+    }
+    a {
+      color:#44aaFF;
+      text-decoration:none;
+    }
+    a:hover, a:active {
+      text-decoration:underline;
+    }
+    .subtitle {
+      text-align:center;
+      font-size:15pt;
+      margin:0px 0px 80px 0px;
     }
     .container {
       max-width:1200px;
@@ -22,14 +34,42 @@
     }
     p {
       font-size:13pt;
+      line-height:19.5pt;
     }
-    h2 {
-      margin-top:250px;
+    #notes a {
+      text-decoration:underline;
+    }
+    #notes p {
+      font-size:11pt;
+      line-height:15pt;
+    }
+    .refs p {
+      margin:6px 0px 6px 0px;
+    }
+    .refs {
+      margin:10px 0px 10px 0px;
+    }
+    article pre {
+      font-family:Inconsolata, consolas, monaco, monospace;
+      font-size:13pt;
+      margin:30px;
+      line-height:17pt;
     }
     h1 {
       font-size:25pt;
-      margin:30px 10px 50px 10px;
+      margin:50px 10px 40px 10px;
+      padding-top:20px;
       text-align:center;
+    }
+    h2 {
+      margin-top:150px;
+      font-size:23pt;
+      text-transform:uppercase;
+    }
+    h3 {
+      margin:40px 0px 0px 0px;
+      font-size:16pt;
+      text-transform:uppercase;
     }
     article {
       margin:20px 620px 1000px 20px;
@@ -38,14 +78,27 @@
       color: inherit;
       background: transparent;
       font-size: 13pt;
-      padding: 5px 15px 5px 15px;
+      padding: 10px 20px 10px 20px;
       cursor: pointer;
       border: solid 3px #d0d0e0;
       border-radius: 4px;
+      margin:30px 0px 0px 0px;
     }
     button:active, button:hover {
       background: #ffffff30;
       outline:0;
+    }
+    .prebtn {
+      margin:-20px 0px 20px 30px;
+    }
+    .prebtn2 {
+      margin:-20px 0px 20px 10px;
+    }
+    .pbtn {
+      margin:0px 0px 20px 30px;
+    }
+    .pbtn2 {
+      margin:0px 0px 20px 10px;
     }
 
     #right {
@@ -57,9 +110,16 @@
       padding:10px;
       background: #000080;
       position: absolute;
-      top:50px;
+      top:20px;
       right: 0px;
       line-height:16px;
+    }
+    #notes { 
+      position:absolute;
+      right:0px;
+      top:460px;
+      width:480px;
+      color:#44aaFF;      
     }
     #out {
       width: 40em;
@@ -91,49 +151,174 @@
       top:400px;
       font-size:10pt;
     }
+    .circle {
+      background: white;
+      color: #00009b;
+      padding: 0px;
+      border-radius: 50%;      
+      font-weight:bold;
+      padding:1px 8px 1px 8px;
+      font-size:80%;
+      font-weight:700;
+      margin-right:5px;
+    }
+    .note {
+      display:none;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div id="right">
-    <div id="screen" style="visibility:hidden">
-      <div style="position:relative">
-        <pre id="out"></pre>
-        <pre id="rem"></pre>
-        <div id="cursor" style="visibility:hidden"></div>
+      <div id="screen">
+        <div style="position:relative">
+          <pre id="out"></pre>
+          <pre id="rem"></pre>
+          <div id="cursor" style="visibility:hidden"></div>
+        </div>      
       </div>
-    </div>
+      <div id="notes">
+        <div class="note" style="display:block" id="note-h1">
+          <p>To keep the main text shorter, you will find some additional details,
+            notes and references in the footnotes here. You can read them if you
+            like, but you won't miss anything important if you don't.
+          </p>
+          <p>
+            See [1] for more of my work on programming interaction. [2] is a fantastic
+            book introducing the idea of <em>complementary science</em> and [3] provides
+            rationale for presenting work using interactive articles.
+          </p>
+          <div class="refs">
+          <p>[1] Tomas Petricek (2019). <a href="http://tomasp.net/histogram">Histogram: You have to know the past to understand the present</a>, LIVE workshop 2019</p>
+          <p>[2] Hasok Chang (2007). <a href="https://amzn.to/33KsXrY">Inventing Temperature: Measurement and Scientific Progress</a>, Oxford University Press</p>
+          <p>[3] Jonathan Edwards, Stephen Kell, Tomas Petricek, Luke Church (2019). <a href="http://tomasp.net/academic/papers/evaluating-systems/">Evaluating programming systems design</a>, PPIG 2019</p>
+          </div>
+        </div>
+        <div class="note" id="note-start">
+          <p>The interactive parts of this article use a simple C64 BASIC emulator
+            written in F# and compiled to JavaScript using Fable. It is limited, but feel free
+            to experiment! If things break, you just need to refresh this page.</p>
+          <p>
+            Unlike the real C64 BASIC, the emulator lets you use lower-case, but commands 
+            like PRINT need to be upper-case. POKE only works for drawing on screen and the 
+            offset is 0 to keep things simple.
+          </p>
+          <p>Get the source code: <a href="https://github.com/tpetricek/basic">https://github.com/tpetricek/basic</a></p>
+        </div>
+        <div class="note" id="note-maze">
+          <p>last.</p>
+        </div>
+      </div>
     </div>
     <article>
 
-      <h1><strong>History of Programming Interactions</strong>: Commodore BASIC</h1>
-      <p>Bacon ipsum dolor amet short loin doner fatback, corned beef biltong venison flank cow chicken tenderloin short ribs boudin ham hock shankle alcatra. Filet mignon alcatra landjaeger, tri-tip swine fatback ham hock pancetta chislic turkey beef chicken ball tip. Buffalo chuck frankfurter tail flank beef ribs. Kevin chicken pork porchetta. Shoulder drumstick fatback strip steak bacon. Andouille strip steak kevin, boudin ground round biltong cow spare ribs flank sirloin chuck chicken pork.</p>
+      <h1 id="h1"><strong>History of Programming Interactions</strong>: Commodore 64 BASIC</h1>
       
-      <button id="btn1" class="active">Click to begin</button>
-      <script type="text/c64" id="btn1-code">
-        remove: btn1
-        show: screen
-        show: main
-        show: cursor
+      <p class="subtitle">by Tomas Petricek, 10 October 2020<br />
+        <a href="http://twitter.com/tomaspetricek">@tomaspetricek</a> |
+        <a href="mailto:tomas@tomasp.net">tomas@tomasp.net</a>
+      </p>
+
+      <p>
+        In this interactive article, we will build a breakout game using Commodore 64 BASIC in the
+        browser. This is a fun programming hack, but it has quite profound theoretical background. Let me explain.</p>
+      
+      <p>
+        <span class="circle">1</span>
+        I believe that <em>how we interact</em> with a programming environment when programming
+        is more important than the specific programming language that we are using.</p>
+      <p>
+        <span class="circle">2</span>
+        This has never been widely studied and we have interesting things to learn from past
+        systems, including Commodore 64 BASIC.</p>
+      <p>
+        <span class="circle">3</span>
+        We should look at the history and recreate past programming experiences
+        in order to learn from them, following a method that a historian of science,
+        Hasok Chang, calls <em>complemetary science</em>.</p>
+      <p>
+        <span class="circle">4</span>
+        Reading about interactions is not enough. To get a sense of how the interaction worked,
+        you need to experience it yourself, at least in a limited form. This is best done
+        with an interactive article.</p>
+  
+      <p>This is an interactive article that documents some of the interesting aspects of programming
+        Commodore 64 BASIC. I'm not trying to create an accurate Commodore 64 simulator though. The 
+        point is to show a few things that we can learn from for future programming systems.
+      </p>
+
+      <script type="text/c64" id="onload-code">
         hidden: PRINT ""
         hidden: PRINT "    **** COMMODORE 64 BASIC V2 ****"
         hidden: PRINT ""
         hidden: PRINT " 64 RAM SYSTEM  38911 BASIC BYTES FREE"
         hidden: PRINT ""
         hidden: PRINT "READY."
+        show: main
+      </script>
+      <button id="btn1" class="active">Click to begin</button>
+      <script type="text/c64" id="btn1-code">        
+        show: cursor
+        scrollto: start
       </script>
 
-      <div id="main" style="visibility:hidden">
+      <div id="main" style="visibility:hidden;">
 
-      <h2>Hello world</h2>
-      <p>Shank bresaola pastrami biltong alcatra kielbasa doner pancetta chicken landjaeger. Short loin ball tip tongue capicola beef swine ham pork loin kevin flank. Strip steak pancetta sausage, pig swine beef ribs boudin. Meatloaf pancetta turducken frankfurter drumstick. Leberkas ham hock jerky andouille brisket venison short loin chuck ball tip spare ribs. Drumstick ground round pastrami rump kielbasa salami tail jowl ham. Beef spare ribs ribeye, salami strip steak flank sirloin chicken shoulder doner kielbasa pork belly chuck shank biltong.</p>
+      <h2 id="start">10 Hello World</h2>
+      <p>When Commodore 64 starts, a welcome screen from BASIC awaits you. Even if you want to use
+        it to just play games, you start with a programming environment. This tells you that you
+        too can become a programmer and you certainly do not need to download gigabytes of tools
+        and wait hours for your XCode or Visual Studio to install.
+      </p>
+
+      <p>
+        Let's follow the tradition and tell BASIC to say hello world for us. To do this, type the 
+        following command, or if you are lazy, just click the button. 
+      </p>
       <pre>PRINT "HELLO WORLD"</pre>
-      <button id="btn2" class="active">Show me</button>
+      <button id="btn2" class="active prebtn">Show me</button>
       <script type="text/c64" id="btn2-code">
-        eval: PRINT "Hello world!"
+        eval: PRINT "HELLO WORLD"
       </script>
 
-      <h2>Famous maze</h2>
+      <p>To a modern programmer, it is amazing how little it takes to get from booting the 
+        machine to printing hello world. Not only you start in the programming environment
+        but you also do not need to write any classes, static methods and compile the program.
+      </p>
+      <p>The obvious next thing is to print hello world in an infinite loop. Previously,
+        we entered a single command and BASIC executed it, but now we need to create a 
+        program. To do this, we prefix code with line numbers:
+      </p>
+      <pre>10 PRINT "HELLO WORLD"
+20 GOTO 10</pre>
+      <p>This is again ingenious. BASIC keeps a list of lines of your program and when you
+        type a line starting with number, it inserts it into the right location. You can use
+        the same prompt for running commands and editing your program. To run the program 
+        now, just type RUN:
+      </p>
+      <pre>RUN</pre>
+      <button id="btn3" class="active prebtn">Show me</button>
+      <script type="text/c64" id="btn3-code">
+        eval: 10 PRINT "HELLO WORLD"
+        eval: 20 GOTO 10
+        start: RUN
+        show: hello2 after 2000
+      </script>
+      <div id="hello2" style="visibility:hidden;">
+      <p>If you run a program with an infinite loop, you can stop it using Ctrl+C  
+        or Command+C. If you want to see the program that you entered, you can 
+        type the LIST command.</p>
+      <button id="btn4" class="active pbtn">Stop running</button>
+      <script type="text/c64" id="btn4-code">
+        stop
+      </script>
+      <button id="btn5" class="active pbtn2">List program</button>
+      <script type="text/c64" id="btn5-code">
+        eval: LIST
+      </script>
+      </div>
+        
+      <h2 id="maze">20 Drawing a maze</h2>
       <p>Bacon ipsum dolor amet short loin doner fatback, corned beef biltong venison flank cow chicken tenderloin short ribs boudin ham hock shankle alcatra. Filet mignon alcatra landjaeger, tri-tip swine fatback ham hock pancetta chislic turkey beef chicken ball tip. Buffalo chuck frankfurter tail flank beef ribs. Kevin chicken pork porchetta. Shoulder drumstick fatback strip steak bacon. Andouille strip steak kevin, boudin ground round biltong cow spare ribs flank sirloin chuck chicken pork.</p>
       <p>Shank bresaola pastrami biltong alcatra kielbasa doner pancetta chicken landjaeger. Short loin ball tip tongue capicola beef swine ham pork loin kevin flank. Strip steak pancetta sausage, pig swine beef ribs boudin. Meatloaf pancetta turducken frankfurter drumstick. Leberkas ham hock jerky andouille brisket venison short loin chuck ball tip spare ribs. Drumstick ground round pastrami rump kielbasa salami tail jowl ham. Beef spare ribs ribeye, salami strip steak flank sirloin chicken shoulder doner kielbasa pork belly chuck shank biltong.</p>
       <pre>10 PRINT CHR$(147);
@@ -141,8 +326,8 @@
 30 GOTO 20
 RUN
 </pre>
-      <button id="btn3" class="active">Show me</button>
-      <script type="text/c64" id="btn3-code">
+      <button id="btn333" class="active">Show me</button>
+      <script type="text/c64" id="btn333-code">
         eval: 10 PRINT CHR$(147);
         eval: 20 PRINT CHR$(205.5 + RND(1));
         eval: 30 GOTO 20
@@ -152,12 +337,12 @@ RUN
 
       <div id="maze2" style="visibility:hidden">
       <p>Stop it using Ctrl+C. You can see the code using LIST or run it again using RUN.</p>
-      <button id="btn4" class="active">Stop it</button>
-      <script type="text/c64" id="btn4-code">
+      <button id="btn44" class="active">Stop it</button>
+      <script type="text/c64" id="btn44-code">
         stop
       </script>
-      <button id="btn5" class="active">List code</button>
-      <script type="text/c64" id="btn5-code">
+      <button id="btn55" class="active">List code</button>
+      <script type="text/c64" id="btn55-code">
         eval: LIST
       </script>
       <button id="btn6" class="active">Run again</button>
@@ -188,7 +373,6 @@ RUN</pre>
       </script>
 
       </div>
-
     </article>
     </div>
     <script src="bundle.js"></script>

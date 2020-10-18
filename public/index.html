@@ -5,12 +5,15 @@
   <meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="shortcut icon" href="fable.ico" />
-  <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@500&family=Kreon:wght@300;500;700&family=PT+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@500&family=Kreon:wght@300;400&family=PT+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <style>
     body {
       font-family:'PT Sans',sans-serif;
       color:#f0f0f0;
       background:#00009b;
+    }
+    code {
+      font-family:Inconsolata,monospace;
     }
     a {
       color:#44aaFF;
@@ -62,7 +65,7 @@
       text-align:center;
     }
     h2 {
-      margin-top:150px;
+      margin-top:80px;
       font-size:23pt;
       text-transform:uppercase;
     }
@@ -112,7 +115,7 @@
       position: absolute;
       top:20px;
       right: 0px;
-      line-height:16px;
+      line-height:14px;
     }
     #notes { 
       position:absolute;
@@ -206,13 +209,47 @@
           <p>Get the source code: <a href="https://github.com/tpetricek/basic">https://github.com/tpetricek/basic</a></p>
         </div>
         <div class="note" id="note-maze">
-          <p>last.</p>
+          <p>The maze is so famous that it has a whole book written about it [1]. To make it a
+            one-liner, you use the command separator ":" which my interpreter does not support.
+            The book inspired not just this example, but some aspects of the style of this article
+            and it is a great read!
+          </p>
+          <p>The character set used by Commodore 64 is called <a href="https://en.wikipedia.org/wiki/PETSCII">PETSCII</a>.
+            The interpreter on this page is using the fantastic <a href="https://style64.org/c64-truetype">C64 TrueType font</a>,
+            which maps Unicode characters to PETSCII, but also includes original key codes in an unused Unicode region,
+            used by the CHR$ function.
+          </p>
+          <div class="refs">
+          <p>[1] Nick Montfort, Patsy Baudoin, John Bell, Ian Bogost, Jeremy Douglass (2014). <a href="https://amzn.to/37dZicM">10 PRINT CHR$(205.5+RND(1)); : GOTO 10</a>, MIT Press</p>
+          </div>
+        </div>
+        <div class="note" id="note-moving">
+          <p>In a real Commodore 64, you can use POKE to write (and PEEK to read) data from any part
+            of the 64k memory. This is used for doing a wide range of things not available through a
+            named command like changing colors or switching to lower-case. It also has a special hacker
+            ethos around itself. Once you know about it, you get curious what else can be done with it!
+          </p>
+          <p>The emulator implemented here only supports POKE for accessing screen memory. To keep things
+            simpler, it starts at offset 0 rather than at offset 1024 as in the real Commodore 64.
+            When you access an invalid address, e.g. by waiting until the ball runs off the screen, 
+            the operation fails and the program execution will stop.
+          </p>
+        </div>
+        <div class="note" id="note-input">
+          <p>Commodore 64 distinguishes between two modes. In the direct mode, you are entering commands
+            and they are executed directly, as in a modern REPL. In the program mode, the machine 
+            executes previously intered program.
+          </p>
+          <p>The <code>GET$</code> operation is one of a few operations that can only be used in the 
+            program mode, so we cannot just run <code>GET$ K$</code>, but need to enter a program
+            instead. In a real Commodore 64, using <code>GET$</code> in the direct mode causes 
+            <code>?ILLEGAL DIRECT ERROR</code> but the emulator just ignores this.</p>
         </div>
       </div>
     </div>
     <article>
 
-      <h1 id="h1"><strong>History of Programming Interactions</strong>: Commodore 64 BASIC</h1>
+      <h1 id="h1"><span style="font-weight:400">Recreating Programming Interactions</span>: The case of Commodore 64 BASIC</h1>
       
       <p class="subtitle">by Tomas Petricek, 10 October 2020<br />
         <a href="http://twitter.com/tomaspetricek">@tomaspetricek</a> |
@@ -246,25 +283,30 @@
         Commodore 64 BASIC. I'm not trying to create an accurate Commodore 64 simulator though. The 
         point is to show a few things that we can learn from for future programming systems.
       </p>
+      <p>We will start with a Hello World example to see how things work and then we'll build 
+        a small Breakout game. This illustrates how easy it is to get started, how the 
+        environment supports learning and how the Commmodore 64 BASIC mode of interaction lets us
+        gradually build a program in a way that is quite different from modern programming environments.
+      </p>
 
       <script type="text/c64" id="onload-code">
         hidden: PRINT ""
         hidden: PRINT "    **** COMMODORE 64 BASIC V2 ****"
         hidden: PRINT ""
         hidden: PRINT " 64 RAM SYSTEM  38911 BASIC BYTES FREE"
+        show: main
         hidden: PRINT ""
         hidden: PRINT "READY."
-        show: main
+        show: cursor
       </script>
       <button id="btn1" class="active">Click to begin</button>
       <script type="text/c64" id="btn1-code">        
-        show: cursor
         scrollto: start
       </script>
 
       <div id="main" style="visibility:hidden;">
 
-      <h2 id="start">10 Hello World</h2>
+      <h2 id="start">100 Hello World</h2>
       <p>When Commodore 64 starts, a welcome screen from BASIC awaits you. Even if you want to use
         it to just play games, you start with a programming environment. This tells you that you
         too can become a programmer and you certainly do not need to download gigabytes of tools
@@ -302,11 +344,11 @@
         eval: 10 PRINT "HELLO WORLD"
         eval: 20 GOTO 10
         start: RUN
-        show: hello2 after 2000
+        show: hello2
       </script>
-      <div id="hello2" style="visibility:hidden;">
-      <p>If you run a program with an infinite loop, you can stop it using Ctrl+C  
-        or Command+C. If you want to see the program that you entered, you can 
+      <div id="hello2" style="display:none;">
+      <p>If you run a program with an infinite loop like this one, you can stop it using 
+        Ctrl+C or Command+C. If you want to see the program that you entered, you can 
         type the LIST command.</p>
       <button id="btn4" class="active pbtn">Stop running</button>
       <script type="text/c64" id="btn4-code">
@@ -318,60 +360,315 @@
       </script>
       </div>
         
-      <h2 id="maze">20 Drawing a maze</h2>
-      <p>Bacon ipsum dolor amet short loin doner fatback, corned beef biltong venison flank cow chicken tenderloin short ribs boudin ham hock shankle alcatra. Filet mignon alcatra landjaeger, tri-tip swine fatback ham hock pancetta chislic turkey beef chicken ball tip. Buffalo chuck frankfurter tail flank beef ribs. Kevin chicken pork porchetta. Shoulder drumstick fatback strip steak bacon. Andouille strip steak kevin, boudin ground round biltong cow spare ribs flank sirloin chuck chicken pork.</p>
-      <p>Shank bresaola pastrami biltong alcatra kielbasa doner pancetta chicken landjaeger. Short loin ball tip tongue capicola beef swine ham pork loin kevin flank. Strip steak pancetta sausage, pig swine beef ribs boudin. Meatloaf pancetta turducken frankfurter drumstick. Leberkas ham hock jerky andouille brisket venison short loin chuck ball tip spare ribs. Drumstick ground round pastrami rump kielbasa salami tail jowl ham. Beef spare ribs ribeye, salami strip steak flank sirloin chicken shoulder doner kielbasa pork belly chuck shank biltong.</p>
+      <h2 id="maze">110 Drawing a maze</h2>
+      <p>There is a lot of clever hacks that you can do in BASIC with a few lines of
+        code. This ease of getting started contributes to what makes it a fun programming 
+        environment. If you found an interesting hack in a computer magazine, you could
+        type it into the console and run it straight away.
+      </p>
+      <p>The fact that you had to copy code from a paper magazine sounds like a hassle,
+        but it has an educational quality. It keeps the samples that can be distributed 
+        in this way reasonably small and it makes you think about the code as you are
+        typing it. 
+      </p>
+
+      <p>To experience this yourself, you should try typing the following three-line 
+        program to the console! It generates a famous maze. This relies on special
+        Commodore character codes: 147 clears the screen, 205 and 206 are backslash and
+        slash crossing the full character size.
+      </p>
       <pre>10 PRINT CHR$(147);
 20 PRINT CHR$(205.5 + RND(1));
 30 GOTO 20
 RUN
 </pre>
-      <button id="btn333" class="active">Show me</button>
-      <script type="text/c64" id="btn333-code">
+      <button id="btn6" class="active pbtn">Show me</button>
+      <script type="text/c64" id="btn6-code">
         eval: 10 PRINT CHR$(147);
         eval: 20 PRINT CHR$(205.5 + RND(1));
         eval: 30 GOTO 20
         start: RUN
-        show: maze2 after 3500
       </script>
-
-      <div id="maze2" style="visibility:hidden">
-      <p>Stop it using Ctrl+C. You can see the code using LIST or run it again using RUN.</p>
-      <button id="btn44" class="active">Stop it</button>
-      <script type="text/c64" id="btn44-code">
+      <button id="btn7" class="active pbtn2">Stop running</button>
+      <script type="text/c64" id="btn7-code">
         stop
-      </script>
-      <button id="btn55" class="active">List code</button>
-      <script type="text/c64" id="btn55-code">
-        eval: LIST
-      </script>
-      <button id="btn6" class="active">Run again</button>
-      <script type="text/c64" id="btn6-code">
-        start: RUN
       </script>
       </div>
 
-      <h2>Famous maze</h2>
-      <p>Bacon ipsum dolor amet short loin doner fatback, corned beef biltong venison flank cow chicken tenderloin short ribs boudin ham hock shankle alcatra. Filet mignon alcatra landjaeger, tri-tip swine fatback ham hock pancetta chislic turkey beef chicken ball tip. Buffalo chuck frankfurter tail flank beef ribs. Kevin chicken pork porchetta. Shoulder drumstick fatback strip steak bacon. Andouille strip steak kevin, boudin ground round biltong cow spare ribs flank sirloin chuck chicken pork.</p>
-      <p>Shank bresaola pastrami biltong alcatra kielbasa doner pancetta chicken landjaeger. Short loin ball tip tongue capicola beef swine ham pork loin kevin flank. Strip steak pancetta sausage, pig swine beef ribs boudin. Meatloaf pancetta turducken frankfurter drumstick. Leberkas ham hock jerky andouille brisket venison short loin chuck ball tip spare ribs. Drumstick ground round pastrami rump kielbasa salami tail jowl ham. Beef spare ribs ribeye, salami strip steak flank sirloin chicken shoulder doner kielbasa pork belly chuck shank biltong.</p>
+      <h2 id="moving">200 Creating a moving ball</h2>
+      <p>To build our Breakout game, we can proceed gradually. This is
+        yet another nice feature of the programming environment. We want to 
+        create a ball that bounces off the wall, but let's start with a ball
+        that just moves to the right.</p>
+      <p>We will do only a tiny bit of planning. Code that initializes 
+        variables with the game state starts at line 1000 and code that
+        handles ball movement will start at 2000. We will also first clear the
+        screen and use DELETE to remove all the previous maze and Hello World code.
+      </p>
       <pre>PRINT CHR$(147);
-1000 X=0
-2000 POKE X CHR$(32)
-2010 X=X+1
-2020 POKE X CHR$(209)
-2030 GOTO 2000
+DELETE 10-        
+1000 REM STATE INITIALIZATION 
+1010 X=0
+2000 REM BALL MOVEMENT
+2010 POKE X CHR$(32)
+2020 X=X+1
+2030 POKE X CHR$(209)
+2040 GOTO 2000
 RUN</pre>
-      <button class="active" id="btn7">Show me</button>
-      <script type="text/c64" id="btn7-code">
+      <p>To draw a ball at a specific location, we use POKE which writes a value to 
+        a memory location. Here, the part of memory representing a screen starts at 
+        offset 0. We first erase the previous ball using a space (character code 32) and then 
+        draw a ball (character code 209).
+      </p>
+      <button class="active pbtn" id="btn9">Show me</button>
+      <script type="text/c64" id="btn9-code">
         eval: PRINT CHR$(147);
-        eval: 1000 X=0
-        eval: 2000 POKE X CHR$(32)
-        eval: 2010 X=X+1
-        eval: 2020 POKE X CHR$(209)
-        eval: 2030 GOTO 2000
+        eval: DELETE 10-
+        eval: 1000 REM STATE INITIALIZATION 
+        eval: 1010 X=0
+        eval: 2000 REM BALL MOVEMENT
+        eval: 2010 POKE X CHR$(32)
+        eval: 2020 X=X+1
+        eval: 2030 POKE X CHR$(209)
+        eval: 2040 GOTO 2000
         start: RUN
       </script>
+      <button id="btn10" class="active pbtn2">Stop running</button>
+      <script type="text/c64" id="btn10-code">
+        stop
+      </script>
 
+      <h2 id="moving">210 Making the ball bounce</h2>
+
+      <p>To make the ball bounce off the walls, we need to 
+        check when it gets to the side of the screen and reverse
+        the direction in which it moves. To do this, we need to 
+        keep more state. We were using the varibale X to keep the 
+        X coordinate. Now we add Y for the Y coordinate and also 
+        DX, DY for the direction (+1 or -1).
+        To see our code clearly, let's first clear the screen and
+        LIST our current code.
+      </p>
+      <pre>PRINT CHR$(147);
+LIST
+1020 Y=0
+1030 DX=1
+1040 DY=0</pre>
+      <p>We immediately follow the edits in initialization code with edits in 
+        the ball movement code, starting at line 2000, to check for collisions
+        with the left side and the right side of the screen: 
+      </p>
+<pre>2010 POKE ((Y*40)+X) CHR$(32)
+2020 X=X+DX
+2030 Y=Y+DY
+2040 IF X=40 THEN DX=-1
+2050 IF X=40 THEN X=38
+2060 IF X&lt;0 THEN DX=1
+2070 IF X&lt;0 THEN X=1
+2200 POKE ((Y*40)+X) CHR$(209)
+2210 GOTO 2000
+RUN</pre>
+      <button class="active prebtn" id="btn11">⮡&nbsp; Show me</button>
+      <script type="text/c64" id="btn11-code">
+        eval: PRINT CHR$(147);
+        eval: LIST
+        eval: 1020 Y=0
+        eval: 1030 DX=1
+        eval: 1040 DY=0
+        eval: 2010 POKE ((Y*40)+X) CHR$(32)
+        eval: 2020 X=X+DX
+        eval: 2030 Y=Y+DY
+        eval: 2040 IF X=40 THEN DX=-1
+        eval: 2050 IF X=40 THEN X=38
+        eval: 2060 IF X<0 THEN DX=1
+        eval: 2070 IF X<0 THEN X=1
+        eval: 2200 POKE ((Y*40)+X) CHR$(209)
+        eval: 2210 GOTO 2000
+        start: RUN
+      </script>
+      <button id="btn11s" class="active prebtn2">Stop running</button>
+      <script type="text/c64" id="btn11s-code">
+        stop
+      </script>
+
+      <p>We knew that we will need to add checks for the top and the bottom side,
+        so we left some empty lines. The checking code ends at 2070 and ball 
+        drawing is on line 2200. We just need to inser the remaining checks:
+      </p>
+      <pre>2080 IF Y=25 THEN DY=-1
+2090 IF Y=25 THEN Y=23
+2100 IF Y&lt;0 THEN DY=1
+2110 IF Y&lt;0 THEN Y=2
+RUN</pre>
+      <button class="active prebtn" id="btn12">⮡&nbsp; Show me</button>
+      <script type="text/c64" id="btn12-code">
+        eval: 2080 IF Y=25 THEN DY=-1
+        eval: 2090 IF Y=25 THEN Y=23
+        eval: 2100 IF Y<0 THEN DY=1
+        eval: 2110 IF Y<0 THEN Y=2
+        start: RUN
+      </script>
+      <button id="btn12s" class="active prebtn2">Stop running</button>
+      <script type="text/c64" id="btn12s-code">
+        stop
+      </script>
+
+      <p>Why is the ball still moving just from left to right and back? We 
+        added the checking code, but forgot to change DY. This is easy to 
+        fix:</p>
+      <pre>1040 DY=1
+RUN
+      </pre>
+      <button class="active prebtn" id="btn13">⮡&nbsp; Show me</button>
+      <script type="text/c64" id="btn13-code">
+        eval: 1040 DY=1
+        start: RUN
+      </script>
+      <button id="btn13s" class="active prebtn2">Stop running</button>
+      <script type="text/c64" id="btn13s-code">
+        stop
+      </script>
+
+      <p>This is what we wanted, a ball that bounces off the walls! 
+        But let me reflect on how we created the program. We started with 
+        a moving ball and then added bouncing in two steps. The programming
+        model of Commodore 64 BASIC makes this very easy. </p>
+      <p>This relies on two things. First, as the code is a simple imperative
+        list of commands, the addressing (using line numbers) makes editing
+        the program much easier than if it consisted of complex composed expressions.
+        We had to be clever about line numbers to have space for inserting code, but
+        this is a small price to pay. Second, the dual use of the console, as both
+        an editor and a REPL, means that the interaction is kept quite simple.</p>
+      <p>There is even more to the console. You can use it to run one off tests, 
+        like <code>PRINT (Y*40)+X</code> to test your calculation. You can also 
+        modify the state directly and then jump into the middle of a program. 
+        For example, we can move the ball to the right bottom corner and let the 
+        program run from there by jumping over the initialization code:
+      </p>
+      <pre>X=39
+Y=24
+GOTO 2000
+      </pre>
+      <button class="active prebtn" id="btn13">⮡&nbsp; Show me</button>
+      <script type="text/c64" id="btn13-code">
+        eval: X=39
+        eval: Y=24
+        eval: GOTO 2000
+      </script>
+      <button id="btn13s" class="active prebtn2">Stop running</button>
+      <script type="text/c64" id="btn13s-code">
+        stop
+      </script>
+
+      <h2 id="input">300 Handling keyboard input</h2>
+      <p>Before we can turn the program into an actual game, we need to figure out
+        how to handle input from keyboard. If you have a string variable <code>K$</code>,
+        you can use <code>GET$ K$</code> to read a key from a buffer. This will return 
+        an empty string if there is no key in the buffer, so we need to write a
+        loop waiting for a key. We can do this on lines 10-50, before the start of
+        our actual program:
+      </p>
+      <pre>PRINT CHR$(147);
+10 K$=""
+20 GET$ K$
+30 IF K$="" THEN GOTO 20
+40 PRINT ASC(K$)
+50 STOP</pre>
+      <button class="active prebtn" id="btn14">Show me</button>
+      <script type="text/c64" id="btn14-code">
+        eval: PRINT CHR$(147);
+        eval: 10 K$=""
+        eval: 20 GET$ K$
+        eval: 30 IF K$="" THEN GOTO 20
+        eval: 40 PRINT ASC(K$)
+        eval: 50 STOP
+      </script>
+      <p>After printing the PETSCII code of the character, we explicitly stop the 
+        program, so that it does not continue into our ball bouncing code. Try running
+        the program now using the <code>RUN</code> command repeatedly to get key codes
+        for up and down arrows! The interpreter does not support all keys, but it handles
+        arrows, space and alphanumeric characters.</p>
+      <p>We will need the key code for the up key (145) and the down key (17). Now that
+        we know this, we can delete our test code:
+      </p>
+      <pre>DELETE 10-50</pre>
+      <button class="active prebtn" id="btn15">Show me</button>
+      <script type="text/c64" id="btn15-code">
+        eval: DELETE 10-50
+      </script>      
+
+      <h2>310 MOVING A PADDLE</h2>      
+
+      <p>
+        xxx
+      </p>
+
+      <pre>1040 P=10
+2500 K$=""
+2510 K=0
+2520 GET$ K$
+2530 IF K$<>"" THEN K=ASC(K$)
+2540 IF K=145 THEN P=P-1
+2550 IF K=17 THEN P=P+1
+2560 POKE ((P-1)*40) CHR$(32)
+2561 POKE ((P+0)*40) CHR$(182)
+2562 POKE ((P+1)*40) CHR$(182)
+2563 POKE ((P+2)*40) CHR$(182)
+2564 POKE ((P+3)*40) CHR$(182)
+2565 POKE ((P+4)*40) CHR$(182)
+2566 POKE ((P+5)*40) CHR$(32)
+2570 GOTO 2500</pre>
+<p>Yo</p>
+<pre>P=10
+GOTO 2500</pre>
+      <button class="active prebtn" id="btn16">Show me</button>
+      <script type="text/c64" id="btn16-code">
+        eval: 1040 P=10
+        eval: 2500 K$=""
+        eval: 2510 K=0
+        eval: 2520 GET$ K$
+        eval: 2530 IF K$<>"" THEN K=ASC(K$)
+        eval: 2540 IF K=145 THEN P=P-1
+        eval: 2550 IF K=17 THEN P=P+1
+        eval: 2560 POKE ((P-1)*40) CHR$(32)
+        eval: 2561 POKE ((P+0)*40) CHR$(182)
+        eval: 2562 POKE ((P+1)*40) CHR$(182)
+        eval: 2563 POKE ((P+2)*40) CHR$(182)
+        eval: 2564 POKE ((P+3)*40) CHR$(182)
+        eval: 2565 POKE ((P+4)*40) CHR$(182)
+        eval: 2566 POKE ((P+5)*40) CHR$(32)
+        eval: 2570 GOTO 2500
+        eval: P=10
+        start: GOTO 2500
+      </script>      
+
+    
+      <h2>More</h2>
+      <button class="active prebtn" id="btn16">⟳&nbsp; Show me</button>
+      <script type="text/c64" id="btn16-code">
+        hidden: DELETE 0-
+        hidden: 1000 REM STATE INITIALIZATION 
+        hidden: 1010 X=0
+        hidden: 1020 Y=0
+        hidden: 1030 DX=1
+        hidden: 1040 DY=1
+        hidden: 2000 REM BALL MOVEMENT
+        hidden: 2010 POKE ((Y*40)+X) CHR$(32)
+        hidden: 2020 X=X+DX
+        hidden: 2030 Y=Y+DY
+        hidden: 2040 IF X=40 THEN DX=-1
+        hidden: 2050 IF X=40 THEN X=38
+        hidden: 2060 IF X<0 THEN DX=1
+        hidden: 2070 IF X<0 THEN X=1
+        hidden: 2080 IF Y=25 THEN DY=-1
+        hidden: 2090 IF Y=25 THEN Y=23
+        hidden: 2100 IF Y<0 THEN DY=1
+        hidden: 2110 IF Y<0 THEN Y=2
+        hidden: 2200 POKE ((Y*40)+X) CHR$(209)
+        hidden: 2210 GOTO 2000
+        hidden: PRINT "LOADED."
+      </script>      
+      
       </div>
     </article>
     </div>

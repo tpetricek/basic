@@ -64,6 +64,8 @@ let tokenizeString s = tokenize [] (List.ofSeq s)
 //tokenizeString "10 PRINT \"{CLR/HOME}\""
 //tokenizeString "20 PRINT CHR$(205.5 + RND(1))"
 //tokenizeString "40 GOTO 20"
+//tokenizeString "DELETE 10-"
+//tokenizeString "X=-1"
 
 type Value =
   | StringValue of string
@@ -85,8 +87,10 @@ type Command =
   | Get of string
   | Stop
   | List 
+  | Rem
   | Run 
   | Empty
+  | Delete of int option * int option
 
 let rec parseBinary left = function
   | (Operator o)::toks -> 
@@ -106,6 +110,7 @@ let rec parseBinary left = function
 and parseExpr = function
   | (String s)::toks -> parseBinary (Const(StringValue s)) toks
   | (Number n)::toks -> parseBinary (Const(NumberValue n)) toks
+  | (Operator ['-'])::(Number n)::toks -> parseBinary (Const(NumberValue -n)) toks
   | (Bracket '(')::toks -> 
       let expr, toks = parseExpr toks
       match toks with 
@@ -132,11 +137,15 @@ let rec parseInput toks =
     | _ -> None, toks
   match toks with 
   | [] -> line, Empty
+  | (Ident "REM")::_ -> line, Rem
   | (Ident "LIST")::[] -> line, List
   | (Ident "STOP")::[] -> line, Stop
   | (Ident "RUN")::[] -> line, Run
   | (Ident "GOTO")::(Number lbl)::[] -> line, Goto(int lbl)
   | (Ident "GET$")::(Ident var)::[] -> line, Get(var)
+  | (Ident "DELETE")::(Number lo)::(Operator ['-'])::(Number hi)::[] -> line, Delete(Some (int lo), Some (int hi))
+  | (Ident "DELETE")::(Operator ['-'])::(Number hi)::[] -> line, Delete(None, Some(int hi))
+  | (Ident "DELETE")::(Number lo)::(Operator ['-'])::[] -> line, Delete(Some(int lo), None)
   | (Ident "POKE")::toks -> 
       let arg1, toks = parseExpr toks
       let arg2, toks = parseExpr toks
@@ -166,6 +175,7 @@ let rec parseInput toks =
 //parseInput (tokenizeString "10 PRINT \"{CLR/HOME}\"")
 //parseInput (tokenizeString "20 PRINT CHR$(205.5 + RND(1))")
 //parseInput (tokenizeString "30 GOTO 20")
+//parseInput (tokenizeString "10 REM SOME RANDOM STUFF")
 
 type Program = 
   list<int * string * Command>
@@ -290,6 +300,14 @@ let rec run (ln, _, cmd) state (program:Program) =
   match cmd with 
   | Stop -> Done state
   | Empty -> Done state
+  | Rem -> next state
+  | Delete(lo, hi) ->
+      let get f = 
+        Option.orElseWith (fun _ -> f state.Program |> Option.map (fun (v, _, _) -> v))
+        >> Option.defaultValue 0
+      let lo = get List.tryHead lo 
+      let hi = get List.tryLast hi      
+      Done { state with Program = state.Program |> List.filter (fun (l, _, _) -> l < lo || l > hi) }
   | List ->
       let mutable state = state
       for _, s, _ in program do 
@@ -459,7 +477,9 @@ type RunAgent() =
               do! Async.Sleep(50)
               let r = f state
               inbox.Post(Tick(pid, r))
-            with e -> printfn "FAILED (async): %A" e }
+            with e -> 
+              printfn "FAILED (async): %A" e 
+              inbox.Post(Stop) }
           Async.StartImmediate(op)
           return! running pid inbuf state }
 
@@ -683,7 +703,7 @@ let printScreen (screen:_[][], (cl, cc)) =
          for c in 0 .. 39 do yield screen.[l].[c]
          yield '\n' |]
   outpre.innerText <- System.String(s) 
-  cursor?style?top <- string (cl * 16) + "px"
+  cursor?style?top <- string (cl * 14) + "px"
   cursor?style?left <- string cc + "em"
 
 agent.PrintScreen.Add(printScreen)
@@ -728,6 +748,7 @@ let runCode cmds =
           else arg.Substring(0, after), int (arg.Substring(after+7))            
         window.setTimeout((fun _ -> 
           document.getElementById(id)?style?visibility <- "visible"
+          document.getElementById(id)?style?display <- "block"
           ), ms) |> ignore
     | cmd, arg -> window.alert("unknown command!\n" + cmd + ": " + arg)
 
@@ -752,6 +773,8 @@ window.onkeydown <- fun e ->
   let key = 
     if e.keyCode = 38. then (char 145).ToString() // up
     elif e.keyCode = 40. then (char 17).ToString() // down
+    elif e.keyCode = 37. then (char 157).ToString() // left
+    elif e.keyCode = 39. then (char 29).ToString() // right
     elif e.keyCode = 8. then (char 20).ToString() // backspace
     elif e.keyCode = 32. then " " // space
     else ""

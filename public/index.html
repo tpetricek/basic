@@ -139,9 +139,8 @@
       position: absolute;
       left: 0em;
       top: 0em;
-      width: 1em;
-      height: 1em;
-      background: #0088FF;
+      color: #0088FF;
+      line-height:14px;
     }
     @font-face {
       font-family: PETSCII;
@@ -245,6 +244,20 @@
             instead. In a real Commodore 64, using <code>GET$</code> in the direct mode causes 
             <code>?ILLEGAL DIRECT ERROR</code> but the emulator just ignores this.</p>
         </div>
+        <div class="note" id="note-paddle">
+          <p>One of the points that this article illustrates is how Commodore 64 BASIC lets
+            you construct programs gradually and combine exploration with programming in a
+            single environment.
+          </p>
+          <p>This also means that we need to maintain state in the emulator between sections.
+            So far, this was only required within each section, but we will need code from
+            multiple sections next. To make following the article easier, the buttons to run
+            code will have the following indicators:
+          </p>
+          <p>
+            <span style="width:20px;display:inline-block">⮡</span>Code depends on some earlier code and will not work as stand-alone. <br />
+            <span style="width:20px;display:inline-block">⟳</span>Resets all the stored code and loads a new functional program.</p>
+        </div>
       </div>
     </div>
     <article>
@@ -344,9 +357,7 @@
         eval: 10 PRINT "HELLO WORLD"
         eval: 20 GOTO 10
         start: RUN
-        show: hello2
       </script>
-      <div id="hello2" style="display:none;">
       <p>If you run a program with an infinite loop like this one, you can stop it using 
         Ctrl+C or Command+C. If you want to see the program that you entered, you can 
         type the LIST command.</p>
@@ -358,7 +369,6 @@
       <script type="text/c64" id="btn5-code">
         eval: LIST
       </script>
-      </div>
         
       <h2 id="maze">110 Drawing a maze</h2>
       <p>There is a lot of clever hacks that you can do in BASIC with a few lines of
@@ -382,19 +392,18 @@
 30 GOTO 20
 RUN
 </pre>
-      <button id="btn6" class="active pbtn">Show me</button>
+      <button id="btn6" class="active prebtn">Show me</button>
       <script type="text/c64" id="btn6-code">
         eval: 10 PRINT CHR$(147);
         eval: 20 PRINT CHR$(205.5 + RND(1));
         eval: 30 GOTO 20
         start: RUN
       </script>
-      <button id="btn7" class="active pbtn2">Stop running</button>
+      <button id="btn7" class="active prebtn2">Stop running</button>
       <script type="text/c64" id="btn7-code">
         stop
       </script>
-      </div>
-
+      
       <h2 id="moving">200 Creating a moving ball</h2>
       <p>To build our Breakout game, we can proceed gradually. This is
         yet another nice feature of the programming environment. We want to 
@@ -406,7 +415,7 @@ RUN
         screen and use DELETE to remove all the previous maze and Hello World code.
       </p>
       <pre>PRINT CHR$(147);
-DELETE 10-        
+DELETE 
 1000 REM STATE INITIALIZATION 
 1010 X=0
 2000 REM BALL MOVEMENT
@@ -423,7 +432,7 @@ RUN</pre>
       <button class="active pbtn" id="btn9">Show me</button>
       <script type="text/c64" id="btn9-code">
         eval: PRINT CHR$(147);
-        eval: DELETE 10-
+        eval: DELETE 
         eval: 1000 REM STATE INITIALIZATION 
         eval: 1010 X=0
         eval: 2000 REM BALL MOVEMENT
@@ -517,8 +526,7 @@ RUN</pre>
         added the checking code, but forgot to change DY. This is easy to 
         fix:</p>
       <pre>1040 DY=1
-RUN
-      </pre>
+RUN</pre>
       <button class="active prebtn" id="btn13">⮡&nbsp; Show me</button>
       <script type="text/c64" id="btn13-code">
         eval: 1040 DY=1
@@ -547,8 +555,7 @@ RUN
       </p>
       <pre>X=39
 Y=24
-GOTO 2000
-      </pre>
+GOTO 2000</pre>
       <button class="active prebtn" id="btn13">⮡&nbsp; Show me</button>
       <script type="text/c64" id="btn13-code">
         eval: X=39
@@ -597,61 +604,107 @@ GOTO 2000
         eval: DELETE 10-50
       </script>      
 
-      <h2>310 MOVING A PADDLE</h2>      
-
+      <h2 id="paddle">310 Moving a paddle</h2>      
       <p>
-        xxx
+        Now that we figured out how to handle input, we can add a paddle to our game.
+        It will be on the left side of the screen and will move using up and down keys.
+        We can write the code independently of all that we have written so far, adding
+        a line 1050 to the initialization code and starting the paddle moving code at 2500.
+      </p>
+      <p>The logic is quite simple. We read a key and get its code. If the key is up or down,
+        we increment or decrement the position of the paddle. We then draw the paddle using
+        <code>POKE</code>, also drawing a space before and after to erase a previous state.
+        The emulator does not support <code>FOR</code> loops, so we just draw 5 vertical 
+        bar characters one after the other.
       </p>
 
-      <pre>1040 P=10
-2500 K$=""
-2510 K=0
-2520 GET$ K$
-2530 IF K$<>"" THEN K=ASC(K$)
-2540 IF K=145 THEN P=P-1
-2550 IF K=17 THEN P=P+1
-2560 POKE ((P-1)*40) CHR$(32)
-2561 POKE ((P+0)*40) CHR$(182)
-2562 POKE ((P+1)*40) CHR$(182)
-2563 POKE ((P+2)*40) CHR$(182)
-2564 POKE ((P+3)*40) CHR$(182)
-2565 POKE ((P+4)*40) CHR$(182)
-2566 POKE ((P+5)*40) CHR$(32)
-2570 GOTO 2500</pre>
-<p>Yo</p>
+      <pre>1050 P=10
+2500 REM MOVING A PADDLE 
+2510 K$=""
+2520 K=0
+2530 GET$ K$
+2540 IF K$<>"" THEN K=ASC(K$)
+2550 IF K=145 THEN P=P-1
+2560 IF K=17 THEN P=P+1
+2570 POKE ((P-1)*40) CHR$(32)
+2571 POKE ((P+0)*40) CHR$(182)
+2572 POKE ((P+1)*40) CHR$(182)
+2573 POKE ((P+2)*40) CHR$(182)
+2574 POKE ((P+3)*40) CHR$(182)
+2575 POKE ((P+4)*40) CHR$(182)
+2576 POKE ((P+5)*40) CHR$(32)
+2580 GOTO 2500</pre>
+      <p>You can run this regardless of whether you followed the previous sections.
+        If you did, typing <code>RUN</code> would start the bouncing ball, so 
+        instead, we initialize P manually and jump directly to the 
+        paddle handling code.
+      </p>
 <pre>P=10
 GOTO 2500</pre>
       <button class="active prebtn" id="btn16">Show me</button>
       <script type="text/c64" id="btn16-code">
-        eval: 1040 P=10
-        eval: 2500 K$=""
-        eval: 2510 K=0
-        eval: 2520 GET$ K$
-        eval: 2530 IF K$<>"" THEN K=ASC(K$)
-        eval: 2540 IF K=145 THEN P=P-1
-        eval: 2550 IF K=17 THEN P=P+1
-        eval: 2560 POKE ((P-1)*40) CHR$(32)
-        eval: 2561 POKE ((P+0)*40) CHR$(182)
-        eval: 2562 POKE ((P+1)*40) CHR$(182)
-        eval: 2563 POKE ((P+2)*40) CHR$(182)
-        eval: 2564 POKE ((P+3)*40) CHR$(182)
-        eval: 2565 POKE ((P+4)*40) CHR$(182)
-        eval: 2566 POKE ((P+5)*40) CHR$(32)
-        eval: 2570 GOTO 2500
+        eval: 1050 P=10
+        eval: 2500 REM MOVING A PADDLE 
+        eval: 2510 K$=""
+        eval: 2520 K=0
+        eval: 2530 GET$ K$
+        eval: 2540 IF K$<>"" THEN K=ASC(K$)
+        eval: 2550 IF K=145 THEN P=P-1
+        eval: 2560 IF K=17 THEN P=P+1
+        eval: 2570 POKE ((P-1)*40) CHR$(32)
+        eval: 2571 POKE ((P+0)*40) CHR$(182)
+        eval: 2572 POKE ((P+1)*40) CHR$(182)
+        eval: 2573 POKE ((P+2)*40) CHR$(182)
+        eval: 2574 POKE ((P+3)*40) CHR$(182)
+        eval: 2575 POKE ((P+4)*40) CHR$(182)
+        eval: 2576 POKE ((P+5)*40) CHR$(32)
+        eval: 2580 GOTO 2500
         eval: P=10
         start: GOTO 2500
-      </script>      
-
+      </script>   
+      <button id="btn16s" class="active prebtn2">Stop running</button>
+      <script type="text/c64" id="btn16s-code">
+        stop
+      </script>   
+      <p>To get something running as soon as possible, we did not add any checks 
+        to make sure that the paddle does not run outside of the screen. If this 
+        happens, the program right now stops and you need to kill it using Ctrl+C.
+        To fix this, we need to draw spaces around the paddle only when it is not
+        at the start/end and ensure that P is between 0 and 20. We were wise enough
+        to use multiples of 10 as our line numbers, so we have space for this 
+        between 2560 and 2570.
+      </p>
+      <pre>2570 IF P&gt;0 THEN POKE ((P-1)*40) CHR$(32)
+2576 IF P&lt;20 THEN POKE ((P+5)*40) CHR$(32)
+2561 IF P&gt;0 THEN P=0
+2562 IF P&lt;20 THEN P=20
+GOTO 2500</pre>
+        <button class="active prebtn" id="btn17">⮡&nbsp; Show me</button>
+        <script type="text/c64" id="btn17-code">
+          eval: 2570 IF P>0 THEN POKE ((P-1)*40) CHR$(32)
+          eval: 2576 IF P<20 THEN POKE ((P+5)*40) CHR$(32)
+          eval: 2561 IF P<0 THEN P=0
+          eval: 2562 IF P>20 THEN P=20
+          start: GOTO 2500
+        </script>      
+        <button id="btn17s" class="active prebtn2">Stop running</button>
+        <script type="text/c64" id="btn17s-code">
+          stop
+        </script>
+      
     
-      <h2>More</h2>
-      <button class="active prebtn" id="btn16">⟳&nbsp; Show me</button>
-      <script type="text/c64" id="btn16-code">
-        hidden: DELETE 0-
+      <h2>400 Putting everything together</h2>
+      <p>Putting everything togeter</p>
+      <p><code>LIST -1990</code> to see all init code, <code>LIST 2000-2490</code> and <code>LIST 2500-</code></p>
+      <button class="active pbtn" id="btn18">⟳&nbsp; Reload all</button>
+      <script type="text/c64" id="btn18-code">
+        hidden: DELETE
         hidden: 1000 REM STATE INITIALIZATION 
         hidden: 1010 X=0
         hidden: 1020 Y=0
         hidden: 1030 DX=1
         hidden: 1040 DY=1
+        hidden: 1050 P=10
         hidden: 2000 REM BALL MOVEMENT
         hidden: 2010 POKE ((Y*40)+X) CHR$(32)
         hidden: 2020 X=X+DX
@@ -666,9 +719,150 @@ GOTO 2500</pre>
         hidden: 2110 IF Y<0 THEN Y=2
         hidden: 2200 POKE ((Y*40)+X) CHR$(209)
         hidden: 2210 GOTO 2000
+        hidden: 2500 REM MOVING A PADDLE 
+        hidden: 2510 K$=""
+        hidden: 2520 K=0
+        hidden: 2530 GET$ K$
+        hidden: 2540 IF K$<>"" THEN K=ASC(K$)
+        hidden: 2550 IF K=145 THEN P=P-1
+        hidden: 2560 IF K=17 THEN P=P+1
+        hidden: 2561 IF P<0 THEN P=0
+        hidden: 2562 IF P>20 THEN P=20
+        hidden: 2570 IF P>0 THEN POKE ((P-1)*40) CHR$(32)
+        hidden: 2571 POKE ((P+0)*40) CHR$(182)
+        hidden: 2572 POKE ((P+1)*40) CHR$(182)
+        hidden: 2573 POKE ((P+2)*40) CHR$(182)
+        hidden: 2574 POKE ((P+3)*40) CHR$(182)
+        hidden: 2575 POKE ((P+4)*40) CHR$(182)
+        hidden: 2576 IF P<20 THEN POKE ((P+5)*40) CHR$(32)
+        hidden: 2580 GOTO 2500
         hidden: PRINT "LOADED."
       </script>      
-      
+
+      <p>Some linking code</p>
+      <pre>1100 PRINT CHR$(147)
+2060 IF X&lt;1 THEN DX=1
+2070 IF X&lt;1 THEN X=2
+2210 
+2580 GOTO 2000
+RUN</pre>
+      <button id="btn19" class="active prebtn2">⮡&nbsp; Show me</button>
+      <script type="text/c64" id="btn19-code">
+        eval: 1100 PRINT CHR$(147)
+        eval: 2060 IF X<1 THEN DX=1
+        eval: 2070 IF X<1 THEN X=2
+        eval: 2210 
+        eval: 2580 GOTO 2000
+        start: RUN
+      </script>
+      <button id="btn19s" class="active prebtn2">Stop running</button>
+      <script type="text/c64" id="btn19s-code">
+        stop
+      </script>
+
+      <p>Add collision detection</p>
+      <pre>2031 IF (X=0) AND (Y&lt;P) THEN GOTO 3000
+2032 IF (X=0) AND (Y>(P+4)) THEN GOTO 3000
+3000 STOP
+RUN</pre>
+      <button id="btn20" class="active prebtn2">⮡&nbsp; Show me</button>
+      <script type="text/c64" id="btn20-code">
+        eval: 2031 IF (X=0) AND (Y<P) THEN GOTO 3000
+        eval: 2032 IF (X=0) AND (Y>(P+4)) THEN GOTO 3000
+        eval: 3000 STOP
+        start: RUN
+      </script>
+      <button id="btn20s" class="active prebtn2">Stop running</button>
+      <script type="text/c64" id="btn20s-code">
+        stop
+      </script>
+
+      <p>Add game over</p>
+      <pre>3000 REM GAME OVER
+3010 PRINT CHR$(147);
+3020 S=0
+3030 S=S+1
+3040 PRINT "               GAME OVER"
+3050 IF S&lt;25 THEN GOTO 3030
+3060 PRINT CHR$(147)
+RUN
+      </pre>
+      <button id="btn21" class="active prebtn2">⮡&nbsp; Show me</button>
+      <script type="text/c64" id="btn21-code">
+        eval: 3000 REM GAME OVER
+        eval: 3010 PRINT CHR$(147);
+        eval: 3020 S=0
+        eval: 3030 S=S+1
+        eval: 3040 PRINT "               GAME OVER"
+        eval: 3050 IF S<25 THEN GOTO 3030
+        eval: 3060 PRINT CHR$(147)
+        start: RUN
+      </script>
+      <button id="btn21s" class="active prebtn2">Stop running</button>
+      <script type="text/c64" id="btn21s-code">
+        stop
+      </script>
+
+      <h2>500 Programming Commodore</h2>
+
+      <button class="active pbtn" id="btn22">⟳&nbsp; Load game</button>
+      <script type="text/c64" id="btn22-code">
+        hidden: DELETE
+        hidden: 1000 REM STATE INITIALIZATION 
+        hidden: 1010 X=0
+        hidden: 1020 Y=0
+        hidden: 1030 DX=1
+        hidden: 1040 DY=1
+        hidden: 1050 P=10
+        hidden: 1100 PRINT CHR$(147)
+        hidden: 2000 REM BALL MOVEMENT
+        hidden: 2010 POKE ((Y*40)+X) CHR$(32)
+        hidden: 2020 X=X+DX
+        hidden: 2030 Y=Y+DY
+        hidden: 2031 IF (X=0) AND (Y<P) THEN GOTO 3000
+        hidden: 2032 IF (X=0) AND (Y>(P+4)) THEN GOTO 3000
+        hidden: 2040 IF X=40 THEN DX=-1
+        hidden: 2050 IF X=40 THEN X=38
+        hidden: 2060 IF X<1 THEN DX=1
+        hidden: 2070 IF X<1 THEN X=2
+        hidden: 2080 IF Y=25 THEN DY=-1
+        hidden: 2090 IF Y=25 THEN Y=23
+        hidden: 2100 IF Y<0 THEN DY=1
+        hidden: 2110 IF Y<0 THEN Y=2
+        hidden: 2200 POKE ((Y*40)+X) CHR$(209)
+        hidden: 2500 REM MOVING A PADDLE 
+        hidden: 2510 K$=""
+        hidden: 2520 K=0
+        hidden: 2530 GET$ K$
+        hidden: 2540 IF K$<>"" THEN K=ASC(K$)
+        hidden: 2550 IF K=145 THEN P=P-1
+        hidden: 2560 IF K=17 THEN P=P+1
+        hidden: 2561 IF P<0 THEN P=0
+        hidden: 2562 IF P>20 THEN P=20
+        hidden: 2570 IF P>0 THEN POKE ((P-1)*40) CHR$(32)
+        hidden: 2571 POKE ((P+0)*40) CHR$(182)
+        hidden: 2572 POKE ((P+1)*40) CHR$(182)
+        hidden: 2573 POKE ((P+2)*40) CHR$(182)
+        hidden: 2574 POKE ((P+3)*40) CHR$(182)
+        hidden: 2575 POKE ((P+4)*40) CHR$(182)
+        hidden: 2576 IF P<20 THEN POKE ((P+5)*40) CHR$(32)
+        hidden: 2580 GOTO 2000
+        hidden: 3000 REM GAME OVER
+        hidden: 3010 PRINT CHR$(147);
+        hidden: 3020 S=0
+        hidden: 3030 S=S+1
+        hidden: 3040 PRINT "               GAME OVER"
+        hidden: 3050 IF S<25 THEN GOTO 3030
+        hidden: 3060 PRINT CHR$(147)
+        hidden: PRINT "LOADED."
+      </script>
+
+      <h2>510 Complementary science</h2>
+
+        
+    
+    
+    
       </div>
     </article>
     </div>

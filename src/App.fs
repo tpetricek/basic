@@ -86,7 +86,7 @@ type Command =
   | If of Expression * Command
   | Get of string
   | Stop
-  | List 
+  | List of int option * int option 
   | Rem
   | Run 
   | Empty
@@ -129,6 +129,12 @@ and parseExpr = function
   | toks -> failwithf "Parsing expr failed. Unexpected: %A" toks
 
 //parseExpr (tokenizeString "(X=0) AND (Y<P)")
+let (|Range|_|) = function
+  | (Number lo)::(Operator ['-'])::(Number hi)::[] -> Some(Some (int lo), Some (int hi))
+  | (Operator ['-'])::(Number hi)::[] -> Some(None, Some(int hi))
+  | (Number lo)::(Operator ['-'])::[] -> Some(Some(int lo), None)
+  | [] -> Some(None, None)
+  | _ -> None
 
 let rec parseInput toks = 
   let line, toks = 
@@ -138,14 +144,12 @@ let rec parseInput toks =
   match toks with 
   | [] -> line, Empty
   | (Ident "REM")::_ -> line, Rem
-  | (Ident "LIST")::[] -> line, List
   | (Ident "STOP")::[] -> line, Stop
   | (Ident "RUN")::[] -> line, Run
   | (Ident "GOTO")::(Number lbl)::[] -> line, Goto(int lbl)
   | (Ident "GET$")::(Ident var)::[] -> line, Get(var)
-  | (Ident "DELETE")::(Number lo)::(Operator ['-'])::(Number hi)::[] -> line, Delete(Some (int lo), Some (int hi))
-  | (Ident "DELETE")::(Operator ['-'])::(Number hi)::[] -> line, Delete(None, Some(int hi))
-  | (Ident "DELETE")::(Number lo)::(Operator ['-'])::[] -> line, Delete(Some(int lo), None)
+  | (Ident "DELETE")::(Range(lo, hi)) -> line, Delete(lo, hi)
+  | (Ident "LIST")::(Range(lo, hi)) -> line, List(lo, hi)
   | (Ident "POKE")::toks -> 
       let arg1, toks = parseExpr toks
       let arg2, toks = parseExpr toks
@@ -199,6 +203,7 @@ and Resumption =
   | More of State * (State -> Resumption)
   | GetKey of State * (State -> string -> Resumption)
   | Done of State
+  | Sleep of int * State * (State -> Resumption)
 
 let newLine (state & { Cursor = cl, _ }) = 
   if cl + 1 >= 25 then 
@@ -297,23 +302,23 @@ let rec run (ln, _, cmd) state (program:Program) =
       | Some ln -> run ln state program
       | _ -> Done state
     else Done state
+  let get f = 
+    Option.orElseWith (fun _ -> f state.Program |> Option.map (fun (v, _, _) -> v))
+    >> Option.defaultValue 0
   match cmd with 
   | Stop -> Done state
   | Empty -> Done state
   | Rem -> next state
   | Delete(lo, hi) ->
-      let get f = 
-        Option.orElseWith (fun _ -> f state.Program |> Option.map (fun (v, _, _) -> v))
-        >> Option.defaultValue 0
-      let lo = get List.tryHead lo 
-      let hi = get List.tryLast hi      
+      let lo, hi = get List.tryHead lo, get List.tryLast hi      
       Done { state with Program = state.Program |> List.filter (fun (l, _, _) -> l < lo || l > hi) }
-  | List ->
-      let mutable state = state
-      for _, s, _ in program do 
-        state <- state |> print s |> newLine
-        printf "%s" s
-      Done state
+  | List(lo, hi) ->
+      let lo, hi = get List.tryHead lo, get List.tryLast hi      
+      let rec loop state = function
+        | (_, s, _)::program -> 
+            Sleep(100, newLine (print s state), fun state -> loop state program)
+        | [] -> Done(state)
+      loop state (program |> List.filter (fun (l, _, _) -> l >= lo && l <= hi))
   | Run ->
       if not (List.isEmpty program) then 
         More (state, fun state -> run (List.head program) state program)
@@ -340,7 +345,7 @@ let rec run (ln, _, cmd) state (program:Program) =
             if l = int n/40 then Array.init 40 (fun c -> if c = int n%40 then s.[0] else state.Screen.[l].[c])
             else state.Screen.[l] )
           next { state with Screen = screen }
-      | _ -> failwith "wrong arguments for POKE"
+      | args -> failwithf "wrong arguments for POKE: %A" args
   | Print(e, nl) ->
       let state = print (format (evaluate state e)) state 
       let state = if nl then newLine state else state
@@ -371,9 +376,14 @@ let input (src:string) state =
   | None, cmd -> 
       true, run (-1, "", cmd) state state.Program
 
+let (|SleepOrMore|_|) = function
+  | Sleep(ms, state, f) -> Some(ms, state, f)
+  | More(state, f) -> Some(50, state, f)
+  | _ -> None
 
 type RunAgent() = 
   let printScreen = Event<_>()
+  let mutable cursor = true
   let agent = MailboxProcessor.Start(fun inbox ->    
 
     let enter (src:string) state = async {
@@ -404,6 +414,7 @@ type RunAgent() =
       let rec eval res = 
         match res with 
         | Done st -> st
+        | Sleep _ 
         | GetKey _ -> failwith "Cannot run interactive command using 'Eval'"
         | More(s, f) -> eval (f s)
       let printReady, state = 
@@ -420,6 +431,7 @@ type RunAgent() =
       return! ready (pid+1) "" state } 
 
     and ready (pid:int) inbuf state = async { 
+      cursor <- true
       match! inbox.Receive() with
       | Key k ->
           if k = (char 145).ToString() || k = (char 17).ToString() then
@@ -470,20 +482,22 @@ type RunAgent() =
           with e ->
             printfn "FAILED (key): %A" e
           return! running pid inbuf state 
-      | More(state, f) ->
+      | SleepOrMore(ms, state, f) ->
           printScreen.Trigger(state.Screen, state.Cursor)
           let op = async {
             try 
-              do! Async.Sleep(50)
+              do! Async.Sleep(ms)
               let r = f state
               inbox.Post(Tick(pid, r))
             with e -> 
               printfn "FAILED (async): %A" e 
               inbox.Post(Stop) }
           Async.StartImmediate(op)
-          return! running pid inbuf state }
+          return! running pid inbuf state 
+       | Sleep _ | More _ -> failwith "Should not happen" }
 
     and running pid inbuf state = async {
+      cursor <- false
       match! inbox.Receive() with
       | Stop -> 
           let state = state |> print "READY." |> newLine 
@@ -508,6 +522,7 @@ type RunAgent() =
   member x.Stop() = agent.Post(Stop)
   member x.Run() = agent.Post(Run)
   member x.PrintScreen = printScreen.Publish
+  member x.Cursor = cursor
 //  member x.LastLine = Seq.append [-1] stateCache.Keys |> Seq.max
 
 let agent = RunAgent() 
@@ -694,17 +709,16 @@ let cursor = document.getElementById("cursor")
 Async.StartImmediate <| async {
   while true do
     for d in ["block"; "none"] do
-      cursor?style?display <- d
+      cursor?style?display <- if agent.Cursor then d else "none"
       do! Async.Sleep(500) }
 
 let printScreen (screen:_[][], (cl, cc)) =
   let s = 
     [| for l in 0 .. 24 do
          for c in 0 .. 39 do yield screen.[l].[c]
-         yield '\n' |]
+         yield '\n' |]  
   outpre.innerText <- System.String(s) 
-  cursor?style?top <- string (cl * 14) + "px"
-  cursor?style?left <- string cc + "em"
+  cursor.innerHTML <- String.init cl (fun _ -> "<br>") + String.init cc (fun _ -> "&nbsp;") + "&#57888;"
 
 agent.PrintScreen.Add(printScreen)
 printScreen (initial.Screen, initial.Cursor)

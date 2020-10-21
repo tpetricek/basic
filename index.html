@@ -35,14 +35,31 @@
       font-family:Kreon, serif;
       font-weight:300;
     }
-    p {
+    p, li {
       font-size:13pt;
       line-height:19.5pt;
+    }
+    ol { 
+      margin:1em 0px 1em 0px;
+      padding-left:2em;
+      counter-reset: item;
+      list-style-type: none;
+    }
+    li {
+      margin:1em 0px 1em 0px;
+      padding:0px 0px 0px 0px;
+    }
+    ol li:before { 
+      content: counter(item) ")"; 
+      counter-increment: item;
+      width:1.5em;
+      display:inline-block;
+      margin-left:-1.5em;
     }
     #notes a {
       text-decoration:underline;
     }
-    #notes p {
+    #notes p, #notes li {
       font-size:11pt;
       line-height:15pt;
     }
@@ -75,7 +92,7 @@
       text-transform:uppercase;
     }
     article {
-      margin:20px 620px 1000px 20px;
+      margin:20px 620px 300px 20px;
     }
     button {
       color: inherit;
@@ -120,7 +137,7 @@
     #notes { 
       position:absolute;
       right:0px;
-      top:460px;
+      top:420px;
       width:480px;
       color:#44aaFF;      
     }
@@ -145,24 +162,6 @@
     @font-face {
       font-family: PETSCII;
       src: url(C64_Pro_Mono-STYLE.woff2);
-    }
-
-    #rem {
-      position:absolute;
-      right:0px;
-      top:400px;
-      font-size:10pt;
-    }
-    .circle {
-      background: white;
-      color: #00009b;
-      padding: 0px;
-      border-radius: 50%;      
-      font-weight:bold;
-      padding:1px 8px 1px 8px;
-      font-size:80%;
-      font-weight:700;
-      margin-right:5px;
     }
     .note {
       display:none;
@@ -258,11 +257,40 @@
             <span style="width:20px;display:inline-block">⮡</span>Code depends on some earlier code and will not work as stand-alone. <br />
             <span style="width:20px;display:inline-block">⟳</span>Resets all the stored code and loads a new functional program.</p>
         </div>
+        <div class="note" id="note-interacting">
+          <p>There are also a number of aspects of the whole ecosystem around 
+            Commodore 64 that contribute to the programming experience:</p>
+          <p>It is easy to start programming. The system boots into a programming 
+              environment, making that the primary way of interacting with the machine.
+              Loading a game from a tape and running it involves the same kind of 
+              interactions as programming. 
+            </p>
+          <p>It is easy to learn. The fact that many programs were available 
+              as code listings in paper magazines may be an accidental virtue, but it
+              means that they are short and that you learn as you copy them.
+            </p>
+        </div>
+        <div class="note" id="note-ccs">
+          <p>For a classic text that challenged the naive view of science, see [1].
+            My work has been more directly influenced by Hasok Chang, who writes about
+            scientific pluralism [2] and proposes the complementary science approach [3].
+            For more on interactive media for programming research, see [4]. I'm also
+            quoting McLuhan [5] in the conclusions.
+
+          </p>
+          <div class="refs">
+          <p>[1] Thomas Kuhn (1962). <a href="https://amzn.to/2Ha8ggI">The Structure of Scientific Revolution</a></p>
+          <p>[2] Hasok Chang (2012). <a href="https://amzn.to/3jeIhBG">Is Water H<sub>2</sub>O? Evidence, Realism and Pluralism</a></p>
+          <p>[3] Hasok Chang (2007). <a href="https://amzn.to/33KsXrY">Inventing Temperature: Measurement and Scientific Progress</a>, Oxford University Press</p>
+          <p>[4] Jonathan Edwards, Stephen Kell, Tomas Petricek, Luke Church (2019). <a href="http://tomasp.net/academic/papers/evaluating-systems/">Evaluating programming systems design</a>, PPIG 2019</p>
+          <p>[5] Marshall McLuhan, Quentin Fiore (1967). <a href="https://amzn.to/3dIUe1f">The Medium is the Massage</a></p>
+          </div>
+        </div>
       </div>
     </div>
     <article>
 
-      <h1 id="h1"><span style="font-weight:400">Recreating Programming Interactions</span>: The case of Commodore 64 BASIC</h1>
+      <h1 id="h1">The Lost Ways of Programming: Commodore 64 BASIC</h1>
       
       <p class="subtitle">by Tomas Petricek, 10 October 2020<br />
         <a href="http://twitter.com/tomaspetricek">@tomaspetricek</a> |
@@ -273,24 +301,22 @@
         In this interactive article, we will build a breakout game using Commodore 64 BASIC in the
         browser. This is a fun programming hack, but it has quite profound theoretical background. Let me explain.</p>
       
-      <p>
-        <span class="circle">1</span>
+      <ol>
+      <li>
         I believe that <em>how we interact</em> with a programming environment when programming
-        is more important than the specific programming language that we are using.</p>
-      <p>
-        <span class="circle">2</span>
+        is more important than the specific programming language that we are using.</li>
+      <li>
         This has never been widely studied and we have interesting things to learn from past
-        systems, including Commodore 64 BASIC.</p>
-      <p>
-        <span class="circle">3</span>
+        systems, including Commodore 64 BASIC.</li>
+      <li>
         We should look at the history and recreate past programming experiences
         in order to learn from them, following a method that a historian of science,
-        Hasok Chang, calls <em>complemetary science</em>.</p>
-      <p>
-        <span class="circle">4</span>
+        Hasok Chang, calls <em>complemetary science</em>.</li>
+      <li>
         Reading about interactions is not enough. To get a sense of how the interaction worked,
         you need to experience it yourself, at least in a limited form. This is best done
-        with an interactive article.</p>
+        with an interactive article.</li>
+      </ol>
   
       <p>This is an interactive article that documents some of the interesting aspects of programming
         Commodore 64 BASIC. I'm not trying to create an accurate Commodore 64 simulator though. The 
@@ -307,14 +333,13 @@
         hidden: PRINT "    **** COMMODORE 64 BASIC V2 ****"
         hidden: PRINT ""
         hidden: PRINT " 64 RAM SYSTEM  38911 BASIC BYTES FREE"
+      </script>
+      <button id="btn1" class="active">Click to begin</button>
+      <script type="text/c64" id="btn1-code">        
         show: main
         hidden: PRINT ""
         hidden: PRINT "READY."
         show: cursor
-      </script>
-      <button id="btn1" class="active">Click to begin</button>
-      <script type="text/c64" id="btn1-code">        
-        scrollto: start
       </script>
 
       <div id="main" style="visibility:hidden;">
@@ -367,7 +392,7 @@
       </script>
       <button id="btn5" class="active pbtn2">List program</button>
       <script type="text/c64" id="btn5-code">
-        eval: LIST
+        start: LIST
       </script>
         
       <h2 id="maze">110 Drawing a maze</h2>
@@ -671,8 +696,8 @@ GOTO 2500</pre>
         happens, the program right now stops and you need to kill it using Ctrl+C.
         To fix this, we need to draw spaces around the paddle only when it is not
         at the start/end and ensure that P is between 0 and 20. We were wise enough
-        to use multiples of 10 as our line numbers, so we have space for this 
-        between 2560 and 2570.
+        to use multiples of 10 as our line numbers, so we have space to insert this
+        code between 2560 and 2570.
       </p>
       <pre>2570 IF P&gt;0 THEN POKE ((P-1)*40) CHR$(32)
 2576 IF P&lt;20 THEN POKE ((P+5)*40) CHR$(32)
@@ -693,9 +718,14 @@ GOTO 2500</pre>
         </script>
       
     
-      <h2>400 Putting everything together</h2>
-      <p>Putting everything togeter</p>
-      <p><code>LIST -1990</code> to see all init code, <code>LIST 2000-2490</code> and <code>LIST 2500-</code></p>
+      <h2>400 Putting everything together</h2>    
+      <p>We built two parts of the game largely independently. 
+        The code for the bouncing ball is between lines 2000 and 2500 and we can start it by
+        typing <code>RUN</code> or <code>GOTO 2000</code>. The code for the paddle starts after
+        that and we can run it using <code>GOTO 2500</code>. The last step is to connect the 
+        two parts! If you skipped a part of the tutorial, the following lets you reload all the
+        code.
+      </p>
       <button class="active pbtn" id="btn18">⟳&nbsp; Reload all</button>
       <script type="text/c64" id="btn18-code">
         hidden: DELETE
@@ -738,8 +768,15 @@ GOTO 2500</pre>
         hidden: 2580 GOTO 2500
         hidden: PRINT "LOADED."
       </script>      
-
-      <p>Some linking code</p>
+      <p>The whole code is now too long to fit on a screen when you run <code>LIST</code>. 
+        If you want to see it, you need to run <code>LIST -2500</code>
+        to see everything before line 2500 or <code>LIST 2500-</code> to see everything after.</p>
+      <p>To link the two parts, we need to make a couple of edits. First, we'll clear the screen 
+        at the end of the initialization code and update the bouncing so that the ball keeps
+        on the right of the paddle. Second, we'll connect the two parts. To do this, we merge
+        the two loops by removing <code>GOTO 2000</code> from the end of the ball movement code.
+        We'll jump to line 2000 only after also updating the paddle on line 2580.
+      </p>
       <pre>1100 PRINT CHR$(147)
 2060 IF X&lt;1 THEN DX=1
 2070 IF X&lt;1 THEN X=2
@@ -760,7 +797,11 @@ RUN</pre>
         stop
       </script>
 
-      <p>Add collision detection</p>
+      <p>This looks like a game, but we are missing one last crucial bit. We need to add a 
+        check to detect when the ball does not hit the paddle while bouncing off the left
+        side of the screen. We insert this between lines 2030 and 2040, i.e just after we
+        update the ball location.
+      </p>
       <pre>2031 IF (X=0) AND (Y&lt;P) THEN GOTO 3000
 2032 IF (X=0) AND (Y>(P+4)) THEN GOTO 3000
 3000 STOP
@@ -777,7 +818,12 @@ RUN</pre>
         stop
       </script>
 
-      <p>Add game over</p>
+      <p>When the ball is below or above the paddle, the code jumps to line 3000 which 
+        uses the <code>STOP</code> command to terminate the program. To make the game
+        a bit nicer, we replace this with a nice GAME OVER effect. If you are typing this,
+        you can also run <code>GOTO 3000</code> at the end to debug just the game over
+        code, without having to play the game.
+      </p>
       <pre>3000 REM GAME OVER
 3010 PRINT CHR$(147);
 3020 S=0
@@ -802,9 +848,15 @@ RUN
       <script type="text/c64" id="btn21s-code">
         stop
       </script>
-
-      <h2>500 Programming Commodore</h2>
-
+      
+      <h2 id="interacting">500 Interacting with BASIC</h2>
+      <p>That's it! If you followed the individual steps of the article,
+        you now created a simple Breakout game in a bit less than 50 lines
+        of code. The point of the article was to let you experience how the
+        process of programming feels, but if you skipped over some parts, 
+        you can cheat and load the whole game below. After doing this, use
+        <code>RUN</code> to run it or <code>LIST</code> to see the full code.
+      </p>
       <button class="active pbtn" id="btn22">⟳&nbsp; Load game</button>
       <script type="text/c64" id="btn22-code">
         hidden: DELETE
@@ -856,10 +908,98 @@ RUN
         hidden: 3060 PRINT CHR$(147)
         hidden: PRINT "LOADED."
       </script>
+      <button class="active pbtn2" id="btn23">⮡&nbsp; Run game</button>
+      <script type="text/c64" id="btn23-code">
+        start: RUN
+      </script>
 
-      <h2>510 Complementary science</h2>
+      <p>I started this article by suggesting that <em>how we interact</em> with a 
+        programming environment is more important than the language that is used.
+        Computer science is very good for talking about programming languages, but 
+        it has traditionally said little about interacting.
+      </p>
+      <p>The point of this article is 
+        to point out some of the interesting aspects of interacting with Commodore 64 
+        BASIC. This is a very simple environment, but there are some valuable lessons:
+      </p>
+      <ol>
+        <li>It is easy to start programming. The system boots into a programming 
+          environment, making that the primary way of interacting with the machine.
+          Loading a game from a tape and running it involves the same kind of 
+          interactions as programming. 
+        </li>
+        <li>It is easy to learn. The fact that many programs were available 
+          as code listings in paper magazines may be an accidental virtue, but it
+          means that they are short and that you learn as you copy them.
+        </li>
+        <li>There is just one kind of interaction. You type commands into a console,
+          but this works both as a way of running commands immediately (REPL) and 
+          as a way of constructing a program (editor). 
+        </li>
+        <li>You get a simple yet flexible workspace. We created two parts of 
+          the game independently and then connected them by editing two
+          GOTOs. They are also easy to test independently, because we can set 
+          variables in the REPL mode and jump direclty into the middle of our code.
+        </li>
+        <li>Hacker access to extra features. I only partly demonstrated this, but
+          <code>POKE</code> (and <code>SYS</code>) give you access to many extra 
+          features of the system. The common things are simple, but curious 
+          hackers get a reward.
+        </li>
+      </ol>
+      <p>I'm not suggesting we should throw away our TypeScript with Visual Studio 
+        Code or Java with Eclipse and go back to Commodore 64 and BASIC. 
+        However, modern programming environments, even with REPL or live reloading,
+        can certainly learn a few tricks.
+      </p>
+      <p>Perhaps the most important point is 
+        that the language should be co-designed with the programming interactions. 
+        For example, line numbers in BASIC are not just poor man's loops. They 
+        enable many of the interesting interactions with the system.
+      </p>
 
-        
+      <h2 id="ccs">510 Complementary science</h2>
+      <p>This article also tries to make a methodological point. A naive view of
+        science is that it is a progressive enterprise that gradually improves
+        our knowledge bit by bit. As historians and philosophers of science 
+        pointed out, actual science is much more complicated. </p>
+      <p>Pluralism in science means that there can sometimes be multiple accepted, 
+        but mutually inconsistent theories, which can still productively 
+        exchange ideas. Scientific revolutions mean that sometimes, revolutionary
+        shift in the basic assumptions invalidates past knowledge.
+      </p>
+      <p>Although we are sometimes reluctant to call computer science a science,
+        we nevertheless believe in the naive idea of its straightforward 
+        progressive nature. This view implies that our present knowledge 
+        encompasses all the good ideas from the past and forgotten ideas were
+        lost because they were simply not good. This is not true for sciences
+        like physics and much less so for computer science.
+      </p>
+      <p>What does this mean? If we accept that there might be something to
+        past scientific ideas that were lost, it becomes worthwhile to reconstruct
+        those ideas, bring them into a modern context and see how they can 
+        contribute to current developments. Historian of science,
+        Hasok Chang, calls this approach <em>complementary science</em>.
+      </p>
+      <p>Complementary computer science is exactly what I tried to do 
+        in this article. I believe that interesting ideas
+        on how to interact with a programming environment have been lost, largely
+        because programming research became so focused on <em>languages</em> 
+        (possibly under the influence of Algol). This article is an attempt to
+        recreate some of the interesting past ideas. My choice of starting with 
+        Commodore 64 BASIC is a fairly pragmatic one. There are more interesting 
+        past programming systems, but this one was relatively easy to recreate.
+      </p>
+      <p>
+        Talking about programming interactions is also harder
+        than talking about programming languages, because a language can easily be 
+        described formally in a printed paper. To make sense of an interaction,
+        you need to experience it. This is why this article is interactive and
+        why I encourage the reader to play with the environment, at least by 
+        copying some of the code. 
+      </p>
+      <p>In other words, we need to change both what we talk about and how we talk 
+        about it, because <em>the medium is the message</em>.</p>
     
     
     

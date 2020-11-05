@@ -379,7 +379,7 @@ let input (src:string) state =
 
 let (|SleepOrMore|_|) = function
   | Sleep(ms, state, f) -> Some(ms, state, f)
-  | More(state, f) -> Some(1, state, f)
+  | More(state, f) -> Some(50, state, f)
   | _ -> None
 
 type RunAgent() = 

@@ -230,6 +230,7 @@ let print s state =
   let mutable state = state
   for c in s do 
     let cl, cc = state.Cursor
+    printfn "%A" state.Cursor
     if int c = 57491 then 
       state <- { state with Screen = Array.init 25 (fun _ -> Array.create 40 ' '); Cursor = 0, 0 }
     else
@@ -240,7 +241,7 @@ let print s state =
         if cl + 1 >= 25 then 
           let screen = Array.init 25 (fun l -> 
             if l = 24 then Array.create 40 ' '
-            else state.Screen.[l+1] )
+            else screen.[l+1] )
           state <- { state with Cursor = 24, 0; Screen = screen }
         else state <- { state with Screen = screen; Cursor = cl + 1, 0 }
       else state <- { state with Screen = screen; Cursor = cl, cc + 1 }
@@ -378,7 +379,7 @@ let input (src:string) state =
 
 let (|SleepOrMore|_|) = function
   | Sleep(ms, state, f) -> Some(ms, state, f)
-  | More(state, f) -> Some(50, state, f)
+  | More(state, f) -> Some(1, state, f)
   | _ -> None
 
 type RunAgent() = 
@@ -523,182 +524,9 @@ type RunAgent() =
   member x.Run() = agent.Post(Run)
   member x.PrintScreen = printScreen.Publish
   member x.Cursor = cursor
-//  member x.LastLine = Seq.append [-1] stateCache.Keys |> Seq.max
 
 let agent = RunAgent() 
 
-(* 
-module Browser = 
-  open Browser.Dom
-
-  let outpre = document.getElementById("out")
-  let mutable instr = ""
-  let mutable running = false
-  let mutable inpbuf = []
-
-  let printScreen state =
-    let s = 
-      [| for l in 0 .. 24 do
-           for c in 0 .. 39 do yield state.Screen.[l].[c]
-           yield '\n' |]
-    outpre.innerText <- System.String(s)
-
-  let rec finish = function
-    | Done state -> running <- false; printScreen()
-    | GetKey f -> 
-        let s = 
-          if List.isEmpty inpbuf then "" else 
-            let h = inpbuf.Head
-            inpbuf <- inpbuf.Tail
-            h
-        let r = f s
-        printScreen()
-        finish r
-    | More f ->    
-        window.setTimeout
-          ( (fun () -> 
-                if running then
-                  let r = f ()
-                  printScreen()
-                  finish r), 50 )
-        |> ignore
-
-  let input src program = 
-    match parseInput (tokenizeString src) with 
-    | Some(ln), cmd -> update (ln, src, cmd) program
-    | None, cmd -> 
-        running <- true
-        run (-1, "", cmd) program |> finish 
-        program
-
-*)  
-type Input = 
-  | Code of string
-  | Rem of string
-
-let inputs = 
-  [|
-  Rem "Start with simple hello world..."
-  Code "PRINT \"HELLO WORLD\""
-
-  Rem "Create the famous maze"
-  Code "10 PRINT CHR$(147);"
-  Code "20 PRINT CHR$(205.5 + RND(1));"
-  Code "30 GOTO 20"
-
-  Rem "Type LIST to see it, type RUN to run it...!"
-  
-  Code "10"
-  Code "20"
-  Code "30"
-
-  Rem "Create a ball moving right"
-  Code "PRINT CHR$(147);"
-  Code "1000 X=0"
-  Code "2000 POKE X CHR$(32)"
-  Code "2010 X=X+1"
-  Code "2020 POKE X CHR$(209)"
-  Code "2030 GOTO 2000"
-  Code "RUN"
-
-  Rem "Create a ball bouncing left right"
-  Code "PRINT CHR$(147);"
-  Code "LIST"
-  Code "1010 DX=1"
-  Code "1010 Y=0"
-  Code "1020 DX=1"
-  Code "1030 DY=1"
-  Code "2010 X=X+DX"
-  Code "2020 Y=Y+DY"
-  Code "2030 IF X=40 THEN DX=0-1"
-  Code "2040 IF X=40 THEN X=38"
-  Code "2050 IF X<0 THEN DX=1"
-  Code "2060 IF X<0 THEN X=2"
-  Code "2200 POKE ((Y*40)+X) CHR$(209)"
-  Code "2210 GOTO 2000"
-  Code "RUN"
-
-  Rem "Oops, try again with DY=0"    
-  Code "1030 DY=0"
-  Code "RUN"
-  
-  Rem "Add bouncing from top and bottom"
-  Code "PRINT CHR$(147);"
-  Code "LIST"
-  Code "2000 POKE ((Y*40)+X) CHR$(32)"
-  Code "2070 IF Y=25 THEN DY=0-1"
-  Code "2080 IF Y=25 THEN Y=23"
-  Code "2090 IF Y<0 THEN DY=1"
-  Code "2100 IF Y<0 THEN Y=2"
-  Code "RUN"
-
-  Rem "Oops, try again with DY=1"
-  Code "1030 DY=1"
-  Code "RUN"
-
-  Rem "Figure out how to handle input"    
-  Code "PRINT CHR$(147);"
-  Code "10 K$=\"\""
-  Code "20 GET$ K$"                             
-  Code "30 IF K$=\"\" THEN GOTO 20"
-  Code "40 PRINT ASC(K$)"
-  Code "50 STOP"
-
-  Rem "Type some key e.g. up arrow"    
-  Code "RUN"
-  Rem "Type some key e.g. down arrow"    
-  Code "RUN"
-
-  Code "1040 P=10"
-  Code "2500 K$=\"\""
-  Code "2510 K=0"
-  Code "2520 GET$ K$"
-  Code "2530 IF K$<>\"\" THEN K=ASC(K$)"
-  Code "2540 IF K=145 THEN P=P-1"
-  Code "2550 IF K=17 THEN P=P+1"
-  Code "2560 POKE ((P-1)*40) CHR$(32)"
-  Code "2561 POKE ((P+0)*40) CHR$(182)"
-  Code "2562 POKE ((P+1)*40) CHR$(182)"
-  Code "2563 POKE ((P+2)*40) CHR$(182)"
-  Code "2564 POKE ((P+3)*40) CHR$(182)"
-  Code "2565 POKE ((P+4)*40) CHR$(182)"
-  Code "2566 POKE ((P+5)*40) CHR$(32)"
-  Code "2570 GOTO 2500"
-
-  Code "P=10"
-  Code "GOTO 2500"
-
-  Code "2560 IF P>0 THEN POKE ((P-1)*40) CHR$(32)"
-  Code "2566 IF P<20 THEN POKE ((P+5)*40) CHR$(32)"
-  Code "2551 IF P<0 THEN P=0"
-  Code "2552 IF P>20 THEN P=20"
-
-  // "GOTO 1000"
-  Code "2050 IF X<1 THEN DX=1"
-  Code "2060 IF X<1 THEN X=3"
-  // "GOTO 1000"
-
-  Code "2210"
-  Code "2570 GOTO 2000"
-  Code "2021 IF (X=0) AND (Y<P) THEN GOTO 3000"
-  Code "2022 IF (X=0) AND (Y>(P+4)) THEN GOTO 3000"
-  Code "3000 STOP"
-    
-  Code "10"
-  Code "20"
-  Code "30"
-  Code "40"
-  Code "50"
-
-  Code "900 PRINT CHR$(147)"
-  Code "3000 PRINT CHR$(147);"
-  Code "3010 S=0"
-  Code "3030 S=S+1"
-  Code "3040 PRINT \"\""
-  Code "3050 IF S<11 THEN GOTO 3030"
-  Code "3060 PRINT \"               GAME OVER\""
-
-  |] 
    
 open Browser.Dom
 open Fable.Core.JsInterop
@@ -771,14 +599,16 @@ for i in 0 .. els.length-1 do
   let btn = els.item(float i) :?> Browser.Types.HTMLButtonElement
   let code = document.getElementById(btn.id + "-code").innerText
   let cmds = parseCommands code
-  btn.onclick <- fun _ -> runCode cmds
+  btn.onclick <- fun _ -> 
+    document.getElementById("screen")?style?display <- "block"
+    runCode cmds
 
 window.onload <- fun _ ->
   document.getElementById("onload-code").innerText
   |> parseCommands |> runCode 
 
 window.onkeydown <- fun e ->
-  printfn "KEYDOWN: %A" (e.ctrlKey, e.keyCode)
+  //printfn "KEYDOWN: %A" (e.ctrlKey, e.keyCode)
   if e.keyCode = 13. then
     e.preventDefault()
     agent.Run()
@@ -796,16 +626,20 @@ window.onkeydown <- fun e ->
     agent.Key(key)
     e.preventDefault()
 
-let notes = 
+let getNotes () = 
   [ let notes = document.getElementsByClassName("note")
     for i in 0 .. notes.length-1 do
       let nt = notes.item(float i)
       let lnk = document.getElementById(nt.id.Substring(5))
       yield lnk.offsetTop, nt ]
 
+let mutable notes = getNotes()
+window.onresize <- fun _ -> notes <- getNotes()
 window.onscroll <- fun _ ->
-  let nt = notes |> Seq.filter (fun (ot, _) -> ot < window.scrollY + 100.) 
-  let _, nt = Seq.append [Seq.head notes] nt |> Seq.last
-  for _, n in notes do n?style?display <- "none"
-  nt?style?display <- "block"
+  let showAll = window.innerWidth < 900.
+  if document.getElementById("main")?style?visibility <> "hidden" then
+    let nt = notes |> Seq.filter (fun (ot, _) -> ot < window.scrollY + 100.) 
+    let _, nt = Seq.append [Seq.head notes] nt |> Seq.last
+    for _, n in notes do n?style?display <- if showAll then "block" else "none"
+    nt?style?display <- "block"
 

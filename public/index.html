@@ -638,8 +638,8 @@ GOTO 2500</pre>
       </p>
       <pre>2570 IF P&gt;0 THEN POKE ((P-1)*40) CHR$(32)
 2576 IF P&lt;20 THEN POKE ((P+5)*40) CHR$(32)
-2561 IF P&gt;0 THEN P=0
-2562 IF P&lt;20 THEN P=20
+2561 IF P&lt;0 THEN P=0
+2562 IF P&gt;20 THEN P=20
 GOTO 2500</pre>
         <button class="active prebtn" id="btn17">⮡&nbsp; Show me</button>
         <script type="text/c64" id="btn17-code">

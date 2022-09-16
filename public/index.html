@@ -231,7 +231,7 @@
 
       <p>
         In this interactive article, we will build a breakout game using Commodore 64 BASIC in the
-        browser. This is a fun programming hack, but it has quite profound theoretical background. Let me explain.</p>
+        browser. This is a fun programming hack, but it has quite a profound theoretical background. Let me explain.</p>
 
       <ol>
       <li>I believe that <em>how we interact</em> with a programming environment when programming
@@ -255,7 +255,7 @@
       </p>
       <p>We will start with a Hello World example to see how things work and then we'll build
         a small Breakout game. This illustrates how easy it is to get started, how the
-        environment supports learning and how the Commmodore 64 BASIC mode of interaction lets us
+        environment supports learning and how the Commodore 64 BASIC mode of interaction lets us
         gradually build a program in a way that is quite different from modern programming environments.
       </p>
 
@@ -269,7 +269,7 @@
         hidden: PRINT ""
         hidden: PRINT "    **** COMMODORE 64 BASIC V2 ****"
         hidden: PRINT ""
-        hidden: PRINT " 64 RAM SYSTEM  38911 BASIC BYTES FREE"
+        hidden: PRINT " 64K RAM SYSTEM  38911 BASIC BYTES FREE"
       </script>
       <button id="btn1" class="active">Click to begin</button>
       <script type="text/c64" id="btn1-code">
@@ -333,7 +333,7 @@
       </script>
 
       <h2 id="maze">110 Drawing a maze</h2>
-      <p>There is a lot of clever hacks that you can do in BASIC with a few lines of
+      <p>There are a lot of clever hacks that you can do in BASIC with a few lines of
         code. This ease of getting started contributes to what makes it a fun programming
         environment. If you found an interesting hack in a computer magazine, you could
         type it into the console and run it straight away.
@@ -414,7 +414,7 @@ RUN</pre>
       <p>To make the ball bounce off the walls, we need to
         check when it gets to the side of the screen and reverse
         the direction in which it moves. To do this, we need to
-        keep more state. We were using the varibale X to keep the
+        keep more state. We were using the variable X to keep the
         X coordinate. Now we add Y for the Y coordinate and also
         DX, DY for the direction (+1 or -1).
         To see our code clearly, let's first clear the screen and
@@ -464,7 +464,7 @@ RUN</pre>
 
       <p>We knew that we will need to add checks for the top and the bottom side,
         so we left some empty lines. The checking code ends at 2070 and ball
-        drawing is on line 2200. We just need to inser the remaining checks:
+          drawing is on line 2200. We just need to insert the remaining checks:
       </p>
       <pre>2080 IF Y=25 THEN DY=-1
 2090 IF Y=25 THEN Y=23
@@ -876,7 +876,7 @@ RUN
         <li>You get a simple yet flexible workspace. We created two parts of
           the game independently and then connected them by editing two
           GOTOs. They are also easy to test independently, because we can set
-          variables in the REPL mode and jump direclty into the middle of our code.
+          variables in the REPL mode and jump directly into the middle of our code.
         </li>
         <li>Hacker access to extra features. I only partly demonstrated this, but
           <code>POKE</code> (and <code>SYS</code>) give you access to many extra
@@ -902,7 +902,7 @@ RUN
         pointed out, actual science is much more complicated. </p>
       <p>Pluralism in science means that there can sometimes be multiple accepted,
         but mutually inconsistent theories, which can still productively
-        exchange ideas. Scientific revolutions mean that sometimes, revolutionary
+        exchange ideas. Scientific revolutions mean that sometimes a revolutionary
         shift in the basic assumptions invalidates past knowledge.
       </p>
       <p>Although we are sometimes reluctant to call computer science a science,
